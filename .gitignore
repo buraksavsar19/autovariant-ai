@@ -1,0 +1,51 @@
+# Environment Configuration
+.env
+.env.*
+
+# Dependency directory
+node_modules
+
+# Test coverage directory
+coverage
+
+# Ignore Apple macOS Desktop Services Store
+.DS_Store
+
+# Logs
+logs
+*.log
+
+# ngrok tunnel file
+config/tunnel.pid
+
+# vite build output
+dist/
+
+# extensions build output
+extensions/*/build
+
+# Node library SQLite database
+web/database.sqlite
+
+# Ignore shopify files created during app dev
+.shopify/*
+.shopify.lock
+
+# build ve bağımlılıklar
+node_modules/
+dist/
+build/
+.next/
+.vercel/
+
+# ortam dosyaları (GİZLİ!)
+.env
+.env.*
+!.env.example
+
+# çeşitli cache/temp dosyaları
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-lock.yaml
+.DS_Store

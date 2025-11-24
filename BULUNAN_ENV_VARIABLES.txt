@@ -1,0 +1,51 @@
+# BULUNAN ENVIRONMENT VARIABLES
+# Bu dosyada projede bulunan tüm environment variable değerleri listelenmiştir
+
+# ✅ 1. SHOPIFY_API_KEY
+# Kaynak: shopify.app.toml (client_id)
+# NOT: Gerçek değer Shopify Partners Dashboard'dan alınmalıdır
+SHOPIFY_API_KEY=your_shopify_api_key_here
+
+# ❌ 2. SHOPIFY_API_SECRET
+# Durum: .env dosyalarında bulunamadı
+# Not: Shopify Partners Dashboard'dan alınması gerekiyor
+SHOPIFY_API_SECRET=bulunamadı
+
+# ✅ 3. SCOPES
+# Kaynak: shopify.app.toml (access_scopes)
+# Not: shopify.app.toml'de "write_products,read_inventory,read_locations" var
+# Ancak istenen format: "read_products,write_products,read_inventory,write_inventory"
+SCOPES=write_products,read_inventory,read_locations
+# İstenen: read_products,write_products,read_inventory,write_inventory
+
+# ✅ 4. APP_URL
+# Kaynak: shopify.app.toml (application_url)
+APP_URL=https://example.com
+
+# ❌ 5. HOST
+# Durum: .env dosyalarında bulunamadı
+# Not: Development için localhost, production için domain gerekli
+HOST=bulunamadı
+
+# ✅ 6. DATABASE_URL
+# Kaynak: web/shopify.js (DB_PATH) ve mevcut database.sqlite dosyası
+# Database dosyası: web/database.sqlite (28KB, mevcut)
+DATABASE_URL=sqlite:./web/database.sqlite
+# Alternatif: sqlite:./database.sqlite (kodda process.cwd() kullanılıyor)
+
+# ✅ 7. OPENAI_API_KEY
+# Kaynak: .env ve web/.env dosyaları
+# NOT: Gerçek değer OpenAI dashboard'dan alınmalıdır
+OPENAI_API_KEY=your_openai_api_key_here
+
+# ❌ 8. ENCRYPTION_KEY
+# Durum: .env dosyalarında bulunamadı
+# Not: Session şifreleme için gerekli, oluşturulması gerekiyor
+ENCRYPTION_KEY=bulunamadı
+# Oluşturmak için: openssl rand -hex 32
+
+# ============================================
+# ÖZET:
+# ✅ Bulunan: 4/8 (SHOPIFY_API_KEY, SCOPES, APP_URL, DATABASE_URL, OPENAI_API_KEY)
+# ❌ Bulunamayan: 3/8 (SHOPIFY_API_SECRET, HOST, ENCRYPTION_KEY)
+# ============================================
