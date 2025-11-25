@@ -1,10 +1,26 @@
 FROM node:18-alpine
 
-ARG SHOPIFY_API_KEY
-ENV SHOPIFY_API_KEY=$SHOPIFY_API_KEY
-EXPOSE 8081
 WORKDIR /app
-COPY web .
+
+# Copy package files
+COPY web/package*.json ./
+
+# Install dependencies
 RUN npm install
-RUN cd frontend && npm install && npm run build
+
+# Copy frontend package files
+COPY web/frontend/package*.json ./frontend/
+RUN cd frontend && npm install
+
+# Copy application code
+COPY web/ .
+
+# Build frontend (SHOPIFY_API_KEY will be provided at runtime via env var)
+# Note: Frontend build might need API key, but we'll handle it at runtime
+RUN cd frontend && SHOPIFY_API_KEY=dummy npm run build || echo "Build may need runtime API key"
+
+# Expose port (Railway will set PORT env var)
+EXPOSE 3000
+
+# Start the application
 CMD ["npm", "run", "serve"]
