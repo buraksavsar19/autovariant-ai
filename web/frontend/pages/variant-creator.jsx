@@ -1477,16 +1477,69 @@ export default function VariantCreator() {
                 <Banner 
                   status="critical" 
                   onDismiss={() => setError(null)}
-                  title="Hata Oluştu"
+                  title={
+                    error.includes("Bağlantı hatası") ? "🌐 Bağlantı Sorunu" :
+                    error.includes("rate limit") ? "⏱️ İşlem Limiti" :
+                    error.includes("API") ? "⚙️ Servis Hatası" :
+                    "⚠️ Bir Sorun Oluştu"
+                  }
                 >
-                  <Text as="p" variant="bodyMd">
-                    {error}
-                  </Text>
-                  {error.includes("rate limit") && (
-                    <Text as="p" variant="bodySm" color="subdued" style={{ marginTop: "0.5rem" }}>
-                      ⏱️ Birkaç saniye bekleyip tekrar deneyebilirsiniz.
+                  <Stack vertical spacing="tight">
+                    <Text as="p" variant="bodyMd">
+                      {error}
                     </Text>
-                  )}
+                    
+                    {/* Bağlantı hatası için yardım */}
+                    {error.includes("Bağlantı hatası") && (
+                      <Stack vertical spacing="extraTight">
+                        <Text as="p" variant="bodySm" color="subdued">
+                          💡 Şunları kontrol edin:
+                        </Text>
+                        <Text as="p" variant="bodySm" color="subdued">
+                          • İnternet bağlantınız aktif mi?
+                        </Text>
+                        <Text as="p" variant="bodySm" color="subdued">
+                          • Sayfayı yenileyip tekrar deneyin
+                        </Text>
+                      </Stack>
+                    )}
+                    
+                    {/* Rate limit için yardım */}
+                    {error.includes("rate limit") && (
+                      <Text as="p" variant="bodySm" color="subdued">
+                        💡 Birkaç saniye bekleyip tekrar deneyin. Çok fazla istek gönderildi.
+                      </Text>
+                    )}
+                    
+                    {/* Prompt hatası için yardım */}
+                    {error.includes("Prompt") && (
+                      <Text as="p" variant="bodySm" color="subdued">
+                        💡 Örnek: "S'den XL'e kadar, kırmızı mavi yeşil, 100 TL"
+                      </Text>
+                    )}
+                    
+                    {/* Genel tekrar dene butonu */}
+                    <Stack spacing="tight">
+                      <Button 
+                        size="slim" 
+                        onClick={() => setError(null)}
+                      >
+                        Kapat
+                      </Button>
+                      {(error.includes("Bağlantı") || error.includes("rate limit")) && (
+                        <Button 
+                          size="slim" 
+                          primary
+                          onClick={() => {
+                            setError(null);
+                            if (prompt) handlePreview();
+                          }}
+                        >
+                          🔄 Tekrar Dene
+                        </Button>
+                      )}
+                    </Stack>
+                  </Stack>
                 </Banner>
               )}
 
@@ -1494,11 +1547,23 @@ export default function VariantCreator() {
                 <Banner 
                   status="success" 
                   onDismiss={() => setSuccess(null)}
-                  title="Başarılı!"
+                  title="🎉 Başarılı!"
                 >
-                  <Text as="p" variant="bodyMd">
-                    {success}
-                  </Text>
+                  <Stack vertical spacing="tight">
+                    <Text as="p" variant="bodyMd">
+                      {success}
+                    </Text>
+                    {success.includes("varyant") && success.includes("oluşturuldu") && (
+                      <Text as="p" variant="bodySm" color="subdued">
+                        ✨ Harika! Şimdi ürün fotoğraflarını ekleyerek varyantları tamamlayabilirsiniz.
+                      </Text>
+                    )}
+                    {success.includes("yüklendi") && success.includes("Shopify") && (
+                      <Text as="p" variant="bodySm" color="subdued">
+                        🛍️ Mükemmel! Ürününüz artık mağazanızda hazır.
+                      </Text>
+                    )}
+                  </Stack>
                 </Banner>
               )}
 
