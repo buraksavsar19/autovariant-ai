@@ -1137,6 +1137,21 @@ export default function VariantCreator() {
               </Stack>
             </Stack>
 
+            {/* Eşleştirme tamamlandı banner'ı - Multi product */}
+            {hasColorMatches && !flowCompleted && (
+              <Banner 
+                status="success" 
+                title="✅ Fotoğraflar renklere eşleştirildi!"
+              >
+                <Stack spacing="tight" alignment="center">
+                  <Text as="span" variant="bodyMd">
+                    Eşleştirmeler tamamlandı. Shopify'a yüklemek için yukarıdaki butona tıklayın.
+                  </Text>
+                  <Badge>{productImagesList.filter(img => img.colorMatch).length} fotoğraf hazır</Badge>
+                </Stack>
+              </Banner>
+            )}
+
             <div style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
@@ -2634,6 +2649,33 @@ export default function VariantCreator() {
                                     )}
                                   </Stack>
                                 </Stack>
+
+                                {/* Eşleştirme tamamlandı banner'ı */}
+                                {!useMultiSelect && uploadedImages.some(img => img.colorMatch) && !flowCompleted && (
+                                  <Banner 
+                                    status="success" 
+                                    title="✅ Fotoğraflar renklere başarıyla eşleştirildi!"
+                                  >
+                                    <Stack vertical spacing="tight">
+                                      <Text as="p" variant="bodyMd">
+                                        Eşleştirmeler tamamlandı. Şimdi fotoğrafları Shopify'a yükleyebilirsiniz.
+                                      </Text>
+                                      <Stack spacing="tight">
+                                        <Button
+                                          primary
+                                          onClick={() => handleUploadImagesToShopify()}
+                                          loading={isUploadingToShopify}
+                                          disabled={isUploadingToShopify || !selectedProductId}
+                                        >
+                                          {isUploadingToShopify ? "Yükleniyor..." : "📤 Ürün Fotoğraflarını Ekle"}
+                                        </Button>
+                                        <Text as="span" variant="bodySm" color="subdued">
+                                          {uploadedImages.filter(img => img.colorMatch).length} fotoğraf eşleştirildi
+                                        </Text>
+                                      </Stack>
+                                    </Stack>
+                                  </Banner>
+                                )}
 
                                 <div style={{
                                   display: "grid",
