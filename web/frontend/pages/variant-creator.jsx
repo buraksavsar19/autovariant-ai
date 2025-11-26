@@ -1484,6 +1484,11 @@ export default function VariantCreator() {
                   <Text as="p" variant="bodyMd">
                     {getStepHelpText(currentStep)}
                   </Text>
+                  {currentStep === 0 && (
+                    <Text as="p" variant="bodySm" color="subdued" style={{ marginTop: "8px" }}>
+                      💡 Varyantları oluşturmak için önce ürün eklemeniz gerekmektedir.
+                    </Text>
+                  )}
                 </Banner>
               )}
 
