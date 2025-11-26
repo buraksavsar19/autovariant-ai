@@ -305,6 +305,14 @@ export default function VariantCreator() {
     }
   }, []);
 
+  // Akış adımı: 0 = Ürün & Prompt, 1 = Önizleme, 2 = Görsel Eşleme, 3 = Tamamlandı
+  const currentStep = useMemo(() => {
+    if (flowCompleted) return 3;
+    if (!preview) return 0;
+    if (!variantsLocked) return 1;
+    return 2;
+  }, [preview, variantsLocked, flowCompleted]);
+
   // Otomatik ilerleme: Varyantlar oluşturulunca görsel adımına scroll yap
   useEffect(() => {
     if (variantsLocked && currentStep === 2) {
@@ -317,14 +325,6 @@ export default function VariantCreator() {
       }, 500);
     }
   }, [variantsLocked, currentStep]);
-
-  // Akış adımı: 0 = Ürün & Prompt, 1 = Önizleme, 2 = Görsel Eşleme, 3 = Tamamlandı
-  const currentStep = useMemo(() => {
-    if (flowCompleted) return 3;
-    if (!preview) return 0;
-    if (!variantsLocked) return 1;
-    return 2;
-  }, [preview, variantsLocked, flowCompleted]);
 
   const stepItems = [
     { id: 0, label: "Ürün & Prompt" },
