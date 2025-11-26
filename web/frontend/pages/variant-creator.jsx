@@ -1405,9 +1405,20 @@ export default function VariantCreator() {
         <Layout.Section>
           <Card sectioned>
             <Stack vertical spacing="loose">
-              {/* Üst adım göstergesi */}
-              <div style={{ marginBottom: "0.5rem", width: "100%" }}>
-                <Stack spacing="extraTight" alignment="center" wrap={false}>
+              {/* Üst adım göstergesi - Mobil uyumlu */}
+              <div style={{ 
+                marginBottom: "0.5rem", 
+                width: "100%",
+                overflowX: "auto",
+                WebkitOverflowScrolling: "touch"
+              }}>
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  minWidth: "fit-content",
+                  padding: "4px 0"
+                }}>
                   {stepItems.map((step, index) => {
                     const status = getStepStatus(step.id);
                     const isLast = index === stepItems.length - 1;
@@ -1415,37 +1426,44 @@ export default function VariantCreator() {
                       status === "done" ? "#5c6ac4" : status === "current" ? "#2c6ecb" : "#d2d5d8";
                     const textColor = status === "upcoming" ? "#202223" : "#ffffff";
                     return (
-                      <div key={step.id} style={{ display: "flex", alignItems: "center", flexShrink: 1, minWidth: 0 }}>
+                      <div key={step.id} style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
                         <div
                           style={{
-                            width: 22,
-                            height: 22,
+                            width: 24,
+                            height: 24,
                             borderRadius: "999px",
                             backgroundColor: bgColor,
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                             color: textColor,
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: 600,
                             flexShrink: 0,
                           }}
                         >
-                          {step.id + 1}
+                          {status === "done" ? "✓" : step.id + 1}
                         </div>
                         <Text
                           as="span"
                           variant="bodySm"
                           color={status === "upcoming" ? "subdued" : undefined}
                           tone={status === "current" ? "success" : undefined}
-                          style={{ marginLeft: 4, marginRight: 4, whiteSpace: "nowrap", fontSize: "11px", lineHeight: "1.2" }}
+                          style={{ 
+                            marginLeft: 6, 
+                            marginRight: 6, 
+                            whiteSpace: "nowrap", 
+                            fontSize: "12px", 
+                            lineHeight: "1.2",
+                            fontWeight: status === "current" ? 600 : 400
+                          }}
                         >
                           {step.label}
                         </Text>
                         {!isLast && (
                           <div
                             style={{
-                              width: 16,
+                              width: 20,
                               height: 2,
                               backgroundColor:
                                 currentStep > step.id ? "#5c6ac4" : "#e1e3e5",
@@ -1458,7 +1476,7 @@ export default function VariantCreator() {
                       </div>
                     );
                   })}
-                </Stack>
+                </div>
               </div>
               <Text as="h2" variant="headingMd">
                 Ürün Varyantlarını Otomatik Oluştur
@@ -2223,7 +2241,12 @@ export default function VariantCreator() {
                     sectioned
                     subdued
                     title="Özet"
-                    style={{ minWidth: 260, marginLeft: "1rem" }}
+                    style={{ 
+                      minWidth: "auto",
+                      maxWidth: "100%",
+                      marginLeft: 0,
+                      marginTop: "1rem"
+                    }}
                   >
                     <Stack vertical spacing="tight">
                       <Text as="p" variant="bodySm" fontWeight="semibold">
