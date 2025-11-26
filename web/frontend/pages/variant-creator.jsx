@@ -2082,39 +2082,46 @@ export default function VariantCreator() {
               </Card>
               )}
 
-              <Stack>
-                <Button
-                  onClick={() => handlePreview()}
-                  disabled={
-                    (!selectedProductId && (!useMultiSelect || selectedProductIds.length === 0)) ||
-                    !prompt.trim() ||
-                    isCreating ||
-                    isLoadingPreview ||
-                    (productsData?.products &&
-                      productsData.products.length === 0)
-                  }
-                  loading={isLoadingPreview}
-                >
-                  Önizleme
-                </Button>
-                <Button
-                  primary
-                  onClick={handleCreate}
-                  disabled={
-                    (!selectedProductId && (!useMultiSelect || selectedProductIds.length === 0)) ||
-                    !editableVariants ||
-                    editableVariants.length === 0 ||
-                    isCreating ||
-                    variantsLocked ||
-                    (productsData?.products &&
-                      productsData.products.length === 0)
-                  }
-                  loading={isCreating}
-                >
-                  {useMultiSelect && selectedProductIds.length > 1 
-                    ? `${selectedProductIds.length} Ürüne Varyantları Oluştur`
-                    : "Varyantları Oluştur"}
-                </Button>
+              <Stack vertical spacing="tight">
+                <Stack>
+                  <Button
+                    onClick={() => handlePreview()}
+                    disabled={
+                      (!selectedProductId && (!useMultiSelect || selectedProductIds.length === 0)) ||
+                      !prompt.trim() ||
+                      isCreating ||
+                      isLoadingPreview ||
+                      (productsData?.products &&
+                        productsData.products.length === 0)
+                    }
+                    loading={isLoadingPreview}
+                  >
+                    Önizleme
+                  </Button>
+                  <Button
+                    primary
+                    onClick={handleCreate}
+                    disabled={
+                      (!selectedProductId && (!useMultiSelect || selectedProductIds.length === 0)) ||
+                      !editableVariants ||
+                      editableVariants.length === 0 ||
+                      isCreating ||
+                      variantsLocked ||
+                      (productsData?.products &&
+                        productsData.products.length === 0)
+                    }
+                    loading={isCreating}
+                  >
+                    {useMultiSelect && selectedProductIds.length > 1 
+                      ? `${selectedProductIds.length} Ürüne Varyantları Oluştur`
+                      : "Varyantları Oluştur"}
+                  </Button>
+                </Stack>
+                {(!editableVariants || editableVariants.length === 0) && !isLoadingPreview && (
+                  <Text as="p" variant="bodySm" color="subdued">
+                    💡 Varyantları oluşturmak için önce "Önizleme" butonuna tıklayın.
+                  </Text>
+                )}
               </Stack>
             </Stack>
           </Card>
