@@ -2188,10 +2188,10 @@ export default function VariantCreator() {
                     Önizleme
                   </Text>
                   <Button
-                    size="slim"
                     onClick={() => setShowSaveTemplateModal(true)}
+                    icon="📋"
                   >
-                    📋 Template olarak kaydet
+                    Şablon Olarak Kaydet
                   </Button>
                 </Stack>
 
@@ -2918,9 +2918,9 @@ export default function VariantCreator() {
           setShowSaveTemplateModal(false);
           setTemplateName("");
         }}
-        title="Template Olarak Kaydet"
+        title="📋 Şablon Olarak Kaydet"
         primaryAction={{
-          content: "Kaydet",
+          content: "💾 Kaydet",
           onAction: handleSaveTemplate,
           disabled: !templateName.trim(),
         }}
@@ -2936,15 +2936,17 @@ export default function VariantCreator() {
       >
         <Modal.Section>
           <Stack vertical spacing="base">
-            <Text as="p" variant="bodyMd">
-              Bu kombinasyonu template olarak kaydedebilirsiniz. Daha sonra tekrar kullanmak için kolayca erişebilirsiniz.
-            </Text>
+            <Banner status="info">
+              <Text as="p" variant="bodyMd">
+                Bu varyant kombinasyonunu şablon olarak kaydedin. Daha sonra "Şablonlar" butonundan tek tıkla tekrar kullanabilirsiniz.
+              </Text>
+            </Banner>
             <TextField
-              label="Template İsmi"
+              label="Şablon İsmi"
               value={templateName}
               onChange={setTemplateName}
-              placeholder="Örnek: Tişört Template, Gömlek Varyantları, Klasik Kombinasyon..."
-              helpText="Bu template'i tanımlayıcı bir isim verin. Örnek: 'Tişört Template', 'Gömlek Varyantları' gibi"
+              placeholder="Örnek: Basic Tişört, Yazlık Gömlek, Klasik Pantolon..."
+              helpText="Şablonu kolayca bulabilmeniz için açıklayıcı bir isim verin"
               autoFocus
             />
             {preview && (
