@@ -25,10 +25,19 @@ export async function parseVariantPromptWithGPT(prompt, apiKey) {
 KRİTİK KURALLAR:
 1. Beden aralıkları: "S'den 3XL'e kadar" → ["S", "M", "L", "XL", "2XL", "3XL"]
 2. Standart bedenler: XS, S, M, L, XL, 2XL, 3XL, 4XL, 5XL
-3. Renkler Türkçe olsun (kırmızı → Kırmızı, mavi → Mavi)
+3. Renkler Türkçe olsun ve ilk harfi büyük (kırmızı → Kırmızı, mavi → Mavi, beyaz → Beyaz)
 4. ÖNEMLİ: Sadece prompt'ta belirtilen renkleri kullan! "Standart", "Default", "Varsayılan" gibi renkler EKLENMEMELİ!
 5. ÖNEMLİ: Eğer prompt'ta hiç renk belirtilmemişse, colors array'ini BOŞ bırak: []
 6. ÖNEMLİ: Sadece prompt'ta açıkça belirtilen renkleri ekle. Kendi kafandan renk ekleme!
+
+RENK ÇIKARMA KURALLARI (ÇOK ÖNEMLİ):
+- Prompt'ta geçen TÜM renkleri yakala! Hiçbir rengi atlama!
+- Renkler virgülle, boşlukla veya "ve" ile ayrılmış olabilir
+- "kırmızı beyaz" → ["Kırmızı", "Beyaz"] (iki ayrı renk!)
+- "kırmızı, beyaz, mavi" → ["Kırmızı", "Beyaz", "Mavi"]
+- "kırmızı ve beyaz" → ["Kırmızı", "Beyaz"]
+- "kırmızı beyaz mavi renkler" → ["Kırmızı", "Beyaz", "Mavi"]
+- Bilinen renkler: kırmızı, beyaz, siyah, mavi, yeşil, sarı, mor, turuncu, pembe, gri, lacivert, kahverengi, bej, krem, bordo, turkuaz, eflatun, haki, navy, ten rengi
 
 7. FİYAT KURALLARI - ÇOK ÖNEMLİ:
    priceRules bir array olmalı ve her kural bir object olmalı: {"condition": "...", "increase": ...} veya {"condition": "...", "decrease": ...}
@@ -90,8 +99,25 @@ Response: {"sizes": ["S", "M", "L", "XL", "2XL"], "colors": ["Kırmızı", "Yeş
 Prompt: "S'den 3XL'e kadar, kırmızı mavi renkler, fiyat 300 lira, 2XL ve sonrası için +100 lira ekstra"
 Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Kırmızı", "Mavi"], "priceRules": [{"condition": "2XL ve üzeri", "increase": 100}], "basePrice": 300, "stockRules": [], "defaultStock": null}
 
+Örnek 5 (BOŞLUKLA AYRILAN RENKLER - ÖNEMLİ!):
+Prompt: "S'den 3XL'e kadar tüm bedenler, kırmızı beyaz renkler, fiyat 500 lira"
+Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Kırmızı", "Beyaz"], "priceRules": [], "basePrice": 500, "stockRules": [], "defaultStock": null}
+
+Örnek 6 (ÜÇ RENK BOŞLUKLA):
+Prompt: "S'den 3XL'e kadar bedenler, siyah beyaz gri renkler, fiyat 450 lira"
+Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Siyah", "Beyaz", "Gri"], "priceRules": [], "basePrice": 450, "stockRules": [], "defaultStock": null}
+
+Örnek 7 (VİRGÜLLE AYRILAN):
+Prompt: "M, L, XL bedenler, beyaz, lacivert, bordo renkler"
+Response: {"sizes": ["M", "L", "XL"], "colors": ["Beyaz", "Lacivert", "Bordo"], "priceRules": [], "basePrice": null, "stockRules": [], "defaultStock": null}
+
 YANLIŞ ÖRNEK (Standart eklenmemeli):
-{"sizes": ["S", "M", "L"], "colors": ["Standart", "Kırmızı"], ...} ❌`;
+{"sizes": ["S", "M", "L"], "colors": ["Standart", "Kırmızı"], ...} ❌
+
+YANLIŞ ÖRNEK (Renk atlanmamalı):
+Prompt: "kırmızı beyaz mavi"
+Yanlış: {"colors": ["Kırmızı", "Mavi"]} ❌ (Beyaz atlandı!)
+Doğru: {"colors": ["Kırmızı", "Beyaz", "Mavi"]} ✓`;
 
   try {
     const completion = await openai.chat.completions.create({
