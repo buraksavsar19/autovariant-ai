@@ -1892,7 +1892,6 @@ export default function VariantCreator() {
                   </Text>
                   <Button
                     size="slim"
-                    plain
                     onClick={() => setShowPromptExamples(true)}
                     disabled={isCreating}
                   >
