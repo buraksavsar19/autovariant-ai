@@ -1624,29 +1624,28 @@ export default function VariantCreator() {
               )}
 
               {/* Template'ler - Prompt alanının üstünde */}
-              {templates.length > 0 && (
-                <Card sectioned>
-                  <Stack vertical spacing="tight">
-                    <Stack alignment="baseline" distribution="equalSpacing">
-                      <Button
-                        plain
-                        onClick={() => setShowTemplates(!showTemplates)}
-                        ariaExpanded={showTemplates}
-                        ariaControls="templates-section"
-                      >
-                        <Stack spacing="tight" alignment="center">
-                          <Text as="h3" variant="headingSm">
-                            📋 Kaydedilmiş Şablonlar
-                          </Text>
-                          <Badge>{templates.length}</Badge>
-                        </Stack>
-                      </Button>
-                    </Stack>
-                    <Collapsible
-                      open={showTemplates}
-                      id="templates-section"
-                      transition={{ duration: "200ms", timingFunction: "ease-in-out" }}
+              <Card sectioned>
+                <Stack vertical spacing="tight">
+                  <Stack alignment="baseline" distribution="equalSpacing">
+                    <Button
+                      plain
+                      onClick={() => setShowTemplates(!showTemplates)}
+                      ariaExpanded={showTemplates}
+                      ariaControls="templates-section"
                     >
+                      <Stack spacing="tight" alignment="center">
+                        <Text as="h3" variant="headingSm">
+                          📋 Kaydedilmiş Şablonlar
+                        </Text>
+                        <Badge>{templates.length}</Badge>
+                      </Stack>
+                    </Button>
+                  </Stack>
+                  <Collapsible
+                    open={showTemplates}
+                    id="templates-section"
+                    transition={{ duration: "200ms", timingFunction: "ease-in-out" }}
+                  >
                       <Stack vertical spacing="tight">
                         <Text as="p" variant="bodySm" color="subdued">
                           Sık kullandığınız kombinasyonları şablon olarak kaydedin. Template'i seçerek hızlıca kullanabilirsiniz.
@@ -1703,27 +1702,38 @@ export default function VariantCreator() {
                               </Card>
                             );
                           })}
+                          {templates.length === 0 && (
+                            <Card sectioned subdued>
+                              <Stack vertical spacing="tight" alignment="center">
+                                <Text as="p" variant="bodyMd" color="subdued" alignment="center">
+                                  📋 Henüz kaydedilmiş şablon yok
+                                </Text>
+                                <Text as="p" variant="bodySm" color="subdued" alignment="center">
+                                  Varyant oluşturduktan sonra "Template Olarak Kaydet" butonuna tıklayarak 
+                                  sık kullandığınız kombinasyonları kaydedebilirsiniz.
+                                </Text>
+                              </Stack>
+                            </Card>
+                          )}
                         </Stack>
                       </Stack>
                     </Collapsible>
                   </Stack>
                 </Card>
-              )}
 
               {/* Geçmiş Kayıtlar */}
-              {history.length > 0 && (
-                <Card sectioned>
-                  <Stack vertical spacing="tight">
-                    <Stack alignment="baseline" distribution="equalSpacing">
-                      <Button
-                        plain
-                        onClick={() => setShowHistory(!showHistory)}
-                        ariaExpanded={showHistory}
-                        ariaControls="history-section"
-                      >
-                        <Stack spacing="tight" alignment="center">
-                          <Text as="h3" variant="headingSm">
-                            📚 Geçmiş Kombinasyonlar
+              <Card sectioned>
+                <Stack vertical spacing="tight">
+                  <Stack alignment="baseline" distribution="equalSpacing">
+                    <Button
+                      plain
+                      onClick={() => setShowHistory(!showHistory)}
+                      ariaExpanded={showHistory}
+                      ariaControls="history-section"
+                    >
+                      <Stack spacing="tight" alignment="center">
+                        <Text as="h3" variant="headingSm">
+                          📚 Geçmiş Kombinasyonlar
                           </Text>
                           <Badge>{history.length}</Badge>
                         </Stack>
@@ -1801,6 +1811,19 @@ export default function VariantCreator() {
                           </div>
                         );
                       })}
+                          {history.length === 0 && (
+                            <Card sectioned subdued>
+                              <Stack vertical spacing="tight" alignment="center">
+                                <Text as="p" variant="bodyMd" color="subdued" alignment="center">
+                                  📚 Henüz geçmiş işlem yok
+                                </Text>
+                                <Text as="p" variant="bodySm" color="subdued" alignment="center">
+                                  Varyant oluşturdukça geçmiş burada görünecek. 
+                                  Aynı kombinasyonları tekrar kullanmak için geçmişten seçebilirsiniz.
+                                </Text>
+                              </Stack>
+                            </Card>
+                          )}
                         </Stack>
                         {history.length > 5 && (
                           <Text as="p" variant="bodySm" color="subdued" alignment="center">
@@ -1811,7 +1834,6 @@ export default function VariantCreator() {
                     </Collapsible>
                   </Stack>
                 </Card>
-              )}
 
               <Stack vertical spacing="tight">
                 <Stack alignment="baseline" distribution="equalSpacing">
@@ -2048,6 +2070,43 @@ export default function VariantCreator() {
             </Stack>
           </Card>
         </Layout.Section>
+
+        {/* AI İşliyor Loading State */}
+        {isLoadingPreview && (
+          <Layout.Section>
+            <Card sectioned>
+              <Stack vertical spacing="loose" alignment="center">
+                <div style={{ 
+                  display: "flex", 
+                  flexDirection: "column", 
+                  alignItems: "center", 
+                  padding: "40px 20px",
+                  gap: "16px"
+                }}>
+                  <div style={{ 
+                    width: "60px", 
+                    height: "60px", 
+                    borderRadius: "50%", 
+                    background: "linear-gradient(135deg, #5C6AC4 0%, #00D4AA 100%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    animation: "pulse 1.5s ease-in-out infinite"
+                  }}>
+                    <span style={{ fontSize: "28px" }}>🤖</span>
+                  </div>
+                  <Text as="h3" variant="headingMd" alignment="center">
+                    AI Prompt'unuzu Analiz Ediyor...
+                  </Text>
+                  <Text as="p" variant="bodySm" color="subdued" alignment="center">
+                    Varyant kombinasyonları oluşturuluyor. Bu işlem birkaç saniye sürebilir.
+                  </Text>
+                  <Spinner size="small" />
+                </div>
+              </Stack>
+            </Card>
+          </Layout.Section>
+        )}
 
         {preview && (
           <Layout.Section>
