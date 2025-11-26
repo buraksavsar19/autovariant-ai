@@ -327,10 +327,10 @@ export default function VariantCreator() {
   }, [variantsLocked, currentStep]);
 
   const stepItems = [
-    { id: 0, label: "Ürün & Prompt" },
-    { id: 1, label: "Önizleme & Varyantlar" },
-    { id: 2, label: "Renk – Görsel Eşleme" },
-    { id: 3, label: "Tamamlandı" },
+    { id: 0, label: "Ürün Seç" },
+    { id: 1, label: "Önizleme" },
+    { id: 2, label: "Görseller" },
+    { id: 3, label: "Bitir" },
   ];
 
   const getStepStatus = (stepId) => {
@@ -1405,19 +1405,19 @@ export default function VariantCreator() {
         <Layout.Section>
           <Card sectioned>
             <Stack vertical spacing="loose">
-              {/* Üst adım göstergesi - Mobil uyumlu */}
+              {/* Üst adım göstergesi - Kompakt ve Mobil uyumlu */}
               <div style={{ 
-                marginBottom: "0.5rem", 
+                marginBottom: "0.75rem", 
                 width: "100%",
-                overflowX: "auto",
-                WebkitOverflowScrolling: "touch"
+                padding: "8px 12px",
+                backgroundColor: "#f6f6f7",
+                borderRadius: "8px"
               }}>
                 <div style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "4px",
-                  minWidth: "fit-content",
-                  padding: "4px 0"
+                  justifyContent: "space-between",
+                  gap: "8px"
                 }}>
                   {stepItems.map((step, index) => {
                     const status = getStepStatus(step.id);
@@ -1426,50 +1426,46 @@ export default function VariantCreator() {
                       status === "done" ? "#5c6ac4" : status === "current" ? "#2c6ecb" : "#d2d5d8";
                     const textColor = status === "upcoming" ? "#202223" : "#ffffff";
                     return (
-                      <div key={step.id} style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+                      <div key={step.id} style={{ display: "flex", alignItems: "center", flex: isLast ? "0 0 auto" : "1 1 0" }}>
                         <div
                           style={{
-                            width: 24,
-                            height: 24,
+                            width: 22,
+                            height: 22,
                             borderRadius: "999px",
                             backgroundColor: bgColor,
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                             color: textColor,
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: 600,
                             flexShrink: 0,
                           }}
                         >
                           {status === "done" ? "✓" : step.id + 1}
                         </div>
-                        <Text
-                          as="span"
-                          variant="bodySm"
-                          color={status === "upcoming" ? "subdued" : undefined}
-                          tone={status === "current" ? "success" : undefined}
+                        <span
                           style={{ 
-                            marginLeft: 6, 
-                            marginRight: 6, 
+                            marginLeft: 4, 
                             whiteSpace: "nowrap", 
-                            fontSize: "12px", 
+                            fontSize: "11px", 
                             lineHeight: "1.2",
-                            fontWeight: status === "current" ? 600 : 400
+                            fontWeight: status === "current" ? 600 : 400,
+                            color: status === "upcoming" ? "#6d7175" : status === "current" ? "#2c6ecb" : "#202223"
                           }}
                         >
                           {step.label}
-                        </Text>
+                        </span>
                         {!isLast && (
                           <div
                             style={{
-                              width: 20,
+                              flex: 1,
                               height: 2,
-                              backgroundColor:
-                                currentStep > step.id ? "#5c6ac4" : "#e1e3e5",
-                              marginRight: 4,
+                              backgroundColor: currentStep > step.id ? "#5c6ac4" : "#e1e3e5",
+                              marginLeft: 8,
+                              marginRight: 8,
                               borderRadius: 999,
-                              flexShrink: 0,
+                              minWidth: 12,
                             }}
                           />
                         )}
@@ -1706,132 +1702,113 @@ export default function VariantCreator() {
                 </Stack>
               )}
 
-              {/* Template'ler - Prompt alanının üstünde */}
-              <Card sectioned>
-                <Stack vertical spacing="tight">
-                  <Stack alignment="baseline" distribution="equalSpacing">
-                    <Button
-                      plain
-                      onClick={() => setShowTemplates(!showTemplates)}
-                      ariaExpanded={showTemplates}
-                      ariaControls="templates-section"
-                    >
-                      <Stack spacing="tight" alignment="center">
-                        <Text as="h3" variant="headingSm">
-                          📋 Kaydedilmiş Şablonlar
-                        </Text>
-                        <Badge>{templates.length}</Badge>
-                      </Stack>
-                    </Button>
-                  </Stack>
-                  <Collapsible
-                    open={showTemplates}
-                    id="templates-section"
-                    transition={{ duration: "200ms", timingFunction: "ease-in-out" }}
-                  >
-                      <Stack vertical spacing="tight">
-                        <Text as="p" variant="bodySm" color="subdued">
-                          Sık kullandığınız kombinasyonları şablon olarak kaydedin. Template'i seçerek hızlıca kullanabilirsiniz.
-                        </Text>
-                        <Stack vertical spacing="base">
-                          {templates.map((template) => {
-                            const sizesText = template.sizes?.join(", ") || "Belirtilmemiş";
-                            const colorsText = template.colors?.join(", ") || "Belirtilmemiş";
-                            const date = new Date(template.timestamp);
-                            const formattedDate = date.toLocaleDateString("tr-TR", {
-                              day: "numeric",
-                              month: "short",
-                            });
-                            
-                            return (
-                              <Card key={template.id} sectioned>
-                                <Stack vertical spacing="base">
-                                  <Stack alignment="baseline" distribution="equalSpacing">
-                                    <Stack vertical spacing="extraTight" fill>
-                                      <Text as="p" variant="bodyMd" fontWeight="semibold">
-                                        {template.name}
-                                      </Text>
-                                      <Stack spacing="tight" wrap>
-                                        <Badge>{sizesText}</Badge>
-                                        <Badge>{colorsText}</Badge>
-                                        {template.basePrice && (
-                                          <Badge>₺{template.basePrice}</Badge>
-                                        )}
-                                      </Stack>
-                                      <Text as="p" variant="bodySm" color="subdued">
-                                        {formattedDate}
-                                      </Text>
-                                    </Stack>
-                                  </Stack>
-                                  <Stack spacing="tight">
-                                    <Button
-                                      size="medium"
-                                      primary
-                                      onClick={() => useTemplate(template)}
-                                      disabled={isCreating || isLoadingPreview}
-                                    >
-                                      ✅ Bu Template'i Kullan
-                                    </Button>
-                                    <Button
-                                      size="medium"
-                                      plain
-                                      destructive
-                                      onClick={() => removeTemplate(template.id)}
-                                    >
-                                      🗑️ Sil
-                                    </Button>
-                                  </Stack>
-                                </Stack>
-                              </Card>
-                            );
-                          })}
-                          {templates.length === 0 && (
-                            <Card sectioned subdued>
-                              <Stack vertical spacing="tight" alignment="center">
-                                <Text as="p" variant="bodyMd" color="subdued" alignment="center">
-                                  📋 Henüz kaydedilmiş şablon yok
-                                </Text>
-                                <Text as="p" variant="bodySm" color="subdued" alignment="center">
-                                  Varyant oluşturduktan sonra "Template Olarak Kaydet" butonuna tıklayarak 
-                                  sık kullandığınız kombinasyonları kaydedebilirsiniz.
-                                </Text>
-                              </Stack>
-                            </Card>
-                          )}
-                        </Stack>
-                      </Stack>
-                    </Collapsible>
-                  </Stack>
-                </Card>
-
-              {/* Geçmiş Kayıtlar */}
-              <Card sectioned>
-                <Stack vertical spacing="tight">
-                  <Stack alignment="baseline" distribution="equalSpacing">
-                    <Button
-                      plain
-                      onClick={() => setShowHistory(!showHistory)}
-                      ariaExpanded={showHistory}
-                      ariaControls="history-section"
-                    >
-                      <Stack spacing="tight" alignment="center">
-                        <Text as="h3" variant="headingSm">
-                          📚 Geçmiş Kombinasyonlar
-                          </Text>
-                          <Badge>{history.length}</Badge>
-                        </Stack>
-                      </Button>
+              {/* Template'ler - Kompakt buton olarak */}
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <Button
+                  size="slim"
+                  onClick={() => setShowTemplates(!showTemplates)}
+                  ariaExpanded={showTemplates}
+                  ariaControls="templates-section"
+                  icon={showTemplates ? "▼" : "▶"}
+                >
+                  📁 Şablonlar ({templates.length})
+                </Button>
+                <Button
+                  size="slim"
+                  onClick={() => setShowHistory(!showHistory)}
+                  ariaExpanded={showHistory}
+                  ariaControls="history-section"
+                >
+                  📚 Geçmiş ({history.length})
+                </Button>
+              </div>
+              
+              {/* Şablonlar Collapsible */}
+              <Collapsible
+                open={showTemplates}
+                id="templates-section"
+                transition={{ duration: "200ms", timingFunction: "ease-in-out" }}
+              >
+                <div style={{ 
+                  backgroundColor: "#f9fafb", 
+                  borderRadius: "8px", 
+                  padding: "12px",
+                  marginTop: "8px"
+                }}>
+                  {templates.length > 0 ? (
+                    <Stack vertical spacing="tight">
+                      {templates.map((template) => {
+                        const sizesText = template.sizes?.join(", ") || "Belirtilmemiş";
+                        const colorsText = template.colors?.join(", ") || "Belirtilmemiş";
+                        return (
+                          <div 
+                            key={template.id}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              backgroundColor: "#fff",
+                              padding: "10px 12px",
+                              borderRadius: "6px",
+                              border: "1px solid #e1e3e5",
+                              gap: "8px",
+                              flexWrap: "wrap"
+                            }}
+                          >
+                            <div style={{ flex: 1, minWidth: "150px" }}>
+                              <Text as="p" variant="bodySm" fontWeight="semibold">
+                                {template.name}
+                              </Text>
+                              <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginTop: "4px" }}>
+                                <Badge size="small">{sizesText}</Badge>
+                                <Badge size="small">{colorsText}</Badge>
+                                {template.basePrice && <Badge size="small">₺{template.basePrice}</Badge>}
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              <Button
+                                size="slim"
+                                primary
+                                onClick={() => useTemplate(template)}
+                                disabled={isCreating || isLoadingPreview}
+                              >
+                                Kullan
+                              </Button>
+                              <Button
+                                size="slim"
+                                destructive
+                                plain
+                                onClick={() => removeTemplate(template.id)}
+                              >
+                                Sil
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </Stack>
-                    <Collapsible
-                      open={showHistory}
-                      id="history-section"
-                      transition={{ duration: "200ms", timingFunction: "ease-in-out" }}
-                    >
-                      <Stack vertical spacing="tight">
-                        <Text as="p" variant="bodySm" color="subdued">
-                          Daha önce oluşturduğunuz kombinasyonları tekrar kullanabilirsiniz
-                        </Text>
-                        <Stack vertical spacing="tight">
+                  ) : (
+                    <Text as="p" variant="bodySm" color="subdued" alignment="center">
+                      Henüz şablon yok. Varyant oluşturduktan sonra kaydedin.
+                    </Text>
+                  )}
+                </div>
+              </Collapsible>
+
+              {/* Geçmiş Kayıtlar Collapsible */}
+              <Collapsible
+                open={showHistory}
+                id="history-section"
+                transition={{ duration: "200ms", timingFunction: "ease-in-out" }}
+              >
+                <div style={{ 
+                  backgroundColor: "#f9fafb", 
+                  borderRadius: "8px", 
+                  padding: "12px",
+                  marginTop: "8px"
+                }}>
+                  {history.length > 0 ? (
+                    <Stack vertical spacing="tight">
                       {history.slice(0, 5).map((item) => {
                         const sizesText = item.sizes?.join(", ") || "Belirtilmemiş";
                         const colorsText = item.colors?.join(", ") || "Belirtilmemiş";
@@ -1842,81 +1819,66 @@ export default function VariantCreator() {
                           hour: "2-digit",
                           minute: "2-digit",
                         });
-                        
                         return (
                           <div
                             key={item.id}
                             style={{
-                              padding: "12px",
-                              border: "1px solid #e1e3e5",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              backgroundColor: "#fff",
+                              padding: "10px 12px",
                               borderRadius: "6px",
-                              cursor: "pointer",
-                              transition: "all 0.2s",
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = "#f6f6f7";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = "transparent";
+                              border: "1px solid #e1e3e5",
+                              gap: "8px",
+                              flexWrap: "wrap"
                             }}
                           >
-                            <Stack alignment="baseline" distribution="equalSpacing">
-                              <Stack vertical spacing="extraTight" fill>
-                                <Stack spacing="tight">
-                                  <Badge>{sizesText}</Badge>
-                                  <Badge>{colorsText}</Badge>
-                                  {item.variantCount > 0 && (
-                                    <Badge>{item.variantCount} varyant</Badge>
-                                  )}
-                                </Stack>
-                                <Text as="p" variant="bodySm" color="subdued">
-                                  {formattedDate}
-                                </Text>
-                              </Stack>
-                              <Stack spacing="tight">
-                                <Button
-                                  size="slim"
-                                  onClick={() => useHistoryItem(item)}
-                                  disabled={isCreating || isLoadingPreview}
-                                >
-                                  Kullan
-                                </Button>
-                                <Button
-                                  size="slim"
-                                  plain
-                                  destructive
-                                  onClick={() => removeHistoryItem(item.id)}
-                                >
-                                  Sil
-                                </Button>
-                              </Stack>
-                            </Stack>
+                            <div style={{ flex: 1, minWidth: "150px" }}>
+                              <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                                <Badge size="small">{sizesText}</Badge>
+                                <Badge size="small">{colorsText}</Badge>
+                                {item.variantCount > 0 && (
+                                  <Badge size="small">{item.variantCount} varyant</Badge>
+                                )}
+                              </div>
+                              <Text as="p" variant="bodySm" color="subdued" style={{ marginTop: "4px" }}>
+                                {formattedDate}
+                              </Text>
+                            </div>
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              <Button
+                                size="slim"
+                                onClick={() => useHistoryItem(item)}
+                                disabled={isCreating || isLoadingPreview}
+                              >
+                                Kullan
+                              </Button>
+                              <Button
+                                size="slim"
+                                plain
+                                destructive
+                                onClick={() => removeHistoryItem(item.id)}
+                              >
+                                Sil
+                              </Button>
+                            </div>
                           </div>
                         );
                       })}
-                          {history.length === 0 && (
-                            <Card sectioned subdued>
-                              <Stack vertical spacing="tight" alignment="center">
-                                <Text as="p" variant="bodyMd" color="subdued" alignment="center">
-                                  📚 Henüz geçmiş işlem yok
-                                </Text>
-                                <Text as="p" variant="bodySm" color="subdued" alignment="center">
-                                  Varyant oluşturdukça geçmiş burada görünecek. 
-                                  Aynı kombinasyonları tekrar kullanmak için geçmişten seçebilirsiniz.
-                                </Text>
-                              </Stack>
-                            </Card>
-                          )}
-                        </Stack>
-                        {history.length > 5 && (
-                          <Text as="p" variant="bodySm" color="subdued" alignment="center">
-                            ... ve {history.length - 5} kayıt daha
-                          </Text>
-                        )}
-                      </Stack>
-                    </Collapsible>
-                  </Stack>
-                </Card>
+                      {history.length > 5 && (
+                        <Text as="p" variant="bodySm" color="subdued" alignment="center">
+                          ... ve {history.length - 5} kayıt daha
+                        </Text>
+                      )}
+                    </Stack>
+                  ) : (
+                    <Text as="p" variant="bodySm" color="subdued" alignment="center">
+                      Henüz geçmiş yok. Varyant oluşturdukça burada görünecek.
+                    </Text>
+                  )}
+                </div>
+              </Collapsible>
 
               <Stack vertical spacing="tight">
                 <Stack alignment="baseline" distribution="equalSpacing">
