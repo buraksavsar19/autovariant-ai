@@ -1738,23 +1738,99 @@ export default function VariantCreator() {
               )}
 
               {isCreating && creationProgress && (
-                <Banner status="info" title="Varyantlar Oluşturuluyor...">
-                  <Stack vertical spacing="tight">
-                    <Text as="p" variant="bodyMd">
-                      {useMultiSelect && selectedProductIds.length > 1
-                        ? `${selectedProductIds.length} ürün için varyantlar oluşturuluyor...`
-                        : `${creationProgress.total} varyant oluşturuluyor. Lütfen bekleyin...`}
-                    </Text>
-                    <Stack>
-                      <Spinner size="small" />
-                      <Text as="span" variant="bodySm" color="subdued">
-                        {useMultiSelect && selectedProductIds.length > 1
-                          ? "Bu işlem birkaç dakika sürebilir"
-                          : "Bu işlem birkaç saniye sürebilir"}
-                      </Text>
+                <Card sectioned>
+                  <div style={{ 
+                    padding: "24px",
+                    background: "linear-gradient(135deg, #e6f4ff 0%, #f0f7ff 100%)",
+                    borderRadius: "12px"
+                  }}>
+                    <Stack vertical spacing="loose">
+                      <Stack alignment="center" spacing="tight">
+                        <div style={{
+                          width: "48px",
+                          height: "48px",
+                          borderRadius: "50%",
+                          background: "linear-gradient(135deg, #0070f3 0%, #00a0dc 100%)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          boxShadow: "0 4px 16px rgba(0, 112, 243, 0.3)"
+                        }}>
+                          <span style={{ fontSize: "24px" }}>⚙️</span>
+                        </div>
+                        <div>
+                          <Text as="h3" variant="headingMd">
+                            Varyantlar Oluşturuluyor
+                          </Text>
+                          <Text as="p" variant="bodySm" color="subdued">
+                            {useMultiSelect && selectedProductIds.length > 1
+                              ? `${selectedProductIds.length} ürün için işlem yapılıyor`
+                              : `${creationProgress.total} varyant Shopify'a ekleniyor`}
+                          </Text>
+                        </div>
+                      </Stack>
+
+                      {/* Progress Bar */}
+                      <div style={{ width: "100%" }}>
+                        <div style={{ 
+                          display: "flex", 
+                          justifyContent: "space-between", 
+                          marginBottom: "8px" 
+                        }}>
+                          <Text as="span" variant="bodySm" color="subdued">İlerleme</Text>
+                          <Text as="span" variant="bodySm" fontWeight="semibold">
+                            {creationProgress.current || 0} / {creationProgress.total}
+                          </Text>
+                        </div>
+                        <div style={{
+                          width: "100%",
+                          height: "12px",
+                          background: "#e1e3e5",
+                          borderRadius: "6px",
+                          overflow: "hidden"
+                        }}>
+                          <div style={{
+                            width: `${Math.min(100, ((creationProgress.current || 0) / creationProgress.total) * 100)}%`,
+                            height: "100%",
+                            background: "linear-gradient(90deg, #0070f3 0%, #00a0dc 100%)",
+                            borderRadius: "6px",
+                            transition: "width 0.3s ease",
+                            animation: "progressShine 1.5s ease-in-out infinite"
+                          }} />
+                        </div>
+                      </div>
+
+                      <Stack alignment="center" spacing="tight">
+                        <Spinner size="small" />
+                        <Text as="span" variant="bodySm" color="subdued">
+                          {useMultiSelect && selectedProductIds.length > 1
+                            ? "Toplu işlem birkaç dakika sürebilir..."
+                            : "Bu işlem birkaç saniye sürecek..."}
+                        </Text>
+                      </Stack>
+
+                      {/* Tip */}
+                      <div style={{
+                        background: "rgba(255, 255, 255, 0.7)",
+                        padding: "12px",
+                        borderRadius: "8px",
+                        marginTop: "8px"
+                      }}>
+                        <Text as="p" variant="bodySm" color="subdued">
+                          💡 <strong>İpucu:</strong> İşlem tamamlandığında otomatik olarak bir sonraki adıma geçilecek.
+                        </Text>
+                      </div>
                     </Stack>
-                  </Stack>
-                </Banner>
+
+                    <style>{`
+                      @keyframes progressShine {
+                        0% { opacity: 1; }
+                        50% { opacity: 0.8; }
+                        100% { opacity: 1; }
+                      }
+                    `}</style>
+                  </div>
+                </Card>
               )}
 
               {!isLoadingProducts &&
@@ -2317,39 +2393,125 @@ export default function VariantCreator() {
           </Card>
         </Layout.Section>
 
-        {/* AI İşliyor Loading State */}
+        {/* AI İşliyor Loading State - Gelişmiş Animasyonlu */}
         {isLoadingPreview && (
           <Layout.Section>
             <Card sectioned>
-              <Stack vertical spacing="loose" alignment="center">
-                <div style={{ 
-                  display: "flex", 
-                  flexDirection: "column", 
-                  alignItems: "center", 
-                  padding: "40px 20px",
-                  gap: "16px"
-                }}>
+              <div style={{ 
+                display: "flex", 
+                flexDirection: "column", 
+                alignItems: "center", 
+                padding: "48px 24px",
+                gap: "20px",
+                background: "linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)",
+                borderRadius: "12px"
+              }}>
+                {/* Animated AI Icon */}
+                <div style={{ position: "relative" }}>
                   <div style={{ 
-                    width: "60px", 
-                    height: "60px", 
+                    width: "80px", 
+                    height: "80px", 
                     borderRadius: "50%", 
                     background: "linear-gradient(135deg, #5C6AC4 0%, #00D4AA 100%)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    animation: "pulse 1.5s ease-in-out infinite"
+                    boxShadow: "0 8px 32px rgba(92, 106, 196, 0.3)",
+                    animation: "aiPulse 2s ease-in-out infinite"
                   }}>
-                    <span style={{ fontSize: "28px" }}>🤖</span>
+                    <span style={{ fontSize: "36px" }}>🤖</span>
                   </div>
-                  <Text as="h3" variant="headingMd" alignment="center">
-                    AI Prompt'unuzu Analiz Ediyor...
-                  </Text>
-                  <Text as="p" variant="bodySm" color="subdued" alignment="center">
-                    Varyant kombinasyonları oluşturuluyor. Bu işlem birkaç saniye sürebilir.
-                  </Text>
-                  <Spinner size="small" />
+                  {/* Rotating ring */}
+                  <div style={{
+                    position: "absolute",
+                    top: "-8px",
+                    left: "-8px",
+                    width: "96px",
+                    height: "96px",
+                    border: "3px solid transparent",
+                    borderTopColor: "#5C6AC4",
+                    borderRadius: "50%",
+                    animation: "spin 1s linear infinite"
+                  }} />
                 </div>
-              </Stack>
+
+                <Text as="h3" variant="headingLg" alignment="center">
+                  ✨ AI Prompt'unuzu Analiz Ediyor
+                </Text>
+                
+                {/* Progress steps */}
+                <div style={{ 
+                  display: "flex", 
+                  flexDirection: "column", 
+                  gap: "12px",
+                  width: "100%",
+                  maxWidth: "300px"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ 
+                      width: "24px", 
+                      height: "24px", 
+                      borderRadius: "50%", 
+                      background: "#008060",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "white",
+                      fontSize: "14px"
+                    }}>✓</div>
+                    <Text as="span" variant="bodySm" color="subdued">Prompt alındı</Text>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ 
+                      width: "24px", 
+                      height: "24px", 
+                      borderRadius: "50%", 
+                      background: "linear-gradient(135deg, #5C6AC4, #00D4AA)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      animation: "stepPulse 1s ease-in-out infinite"
+                    }}>
+                      <Spinner size="small" />
+                    </div>
+                    <Text as="span" variant="bodySm">AI analiz yapıyor...</Text>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", opacity: 0.5 }}>
+                    <div style={{ 
+                      width: "24px", 
+                      height: "24px", 
+                      borderRadius: "50%", 
+                      background: "#e1e3e5",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#8c9196",
+                      fontSize: "12px"
+                    }}>3</div>
+                    <Text as="span" variant="bodySm" color="subdued">Varyantlar oluşturulacak</Text>
+                  </div>
+                </div>
+
+                <Text as="p" variant="bodySm" color="subdued" alignment="center">
+                  Bu işlem genellikle 2-5 saniye sürer
+                </Text>
+
+                {/* CSS Animations */}
+                <style>{`
+                  @keyframes aiPulse {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(1.05); }
+                  }
+                  @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                  }
+                  @keyframes stepPulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.7; }
+                  }
+                `}</style>
+              </div>
             </Card>
           </Layout.Section>
         )}
@@ -2649,7 +2811,136 @@ export default function VariantCreator() {
                       </Stack>
                     ) : (
                       // Tek seçim modu: Normal görsel yükleme
-                      <div id="image-upload-section">
+                      <div id="image-upload-section" style={{ position: "relative" }}>
+                        {/* Yükleme Overlay */}
+                        {isUploadingToShopify && (
+                          <div style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: "rgba(255, 255, 255, 0.95)",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            zIndex: 100,
+                            borderRadius: "12px",
+                            gap: "20px",
+                            padding: "40px"
+                          }}>
+                            <div style={{
+                              width: "80px",
+                              height: "80px",
+                              borderRadius: "50%",
+                              background: "linear-gradient(135deg, #008060 0%, #00a870 100%)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              boxShadow: "0 8px 32px rgba(0, 128, 96, 0.3)",
+                              animation: "uploadPulse 1.5s ease-in-out infinite"
+                            }}>
+                              <span style={{ fontSize: "36px" }}>📤</span>
+                            </div>
+                            <Text as="h3" variant="headingLg">
+                              Shopify'a Yükleniyor...
+                            </Text>
+                            <div style={{
+                              width: "200px",
+                              height: "8px",
+                              background: "#e1e3e5",
+                              borderRadius: "4px",
+                              overflow: "hidden"
+                            }}>
+                              <div style={{
+                                width: "100%",
+                                height: "100%",
+                                background: "linear-gradient(90deg, #008060 0%, #00a870 50%, #008060 100%)",
+                                backgroundSize: "200% 100%",
+                                animation: "uploadProgress 1.5s ease-in-out infinite"
+                              }} />
+                            </div>
+                            <Text as="p" variant="bodySm" color="subdued">
+                              Fotoğraflar varyantlara atanıyor. Lütfen bekleyin...
+                            </Text>
+                            <style>{`
+                              @keyframes uploadPulse {
+                                0%, 100% { transform: scale(1); }
+                                50% { transform: scale(1.05); }
+                              }
+                              @keyframes uploadProgress {
+                                0% { background-position: 200% 0; }
+                                100% { background-position: -200% 0; }
+                              }
+                            `}</style>
+                          </div>
+                        )}
+
+                        {/* Renk Analizi Overlay */}
+                        {isAnalyzingColors && (
+                          <div style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: "rgba(255, 255, 255, 0.95)",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            zIndex: 100,
+                            borderRadius: "12px",
+                            gap: "20px",
+                            padding: "40px"
+                          }}>
+                            <div style={{
+                              width: "80px",
+                              height: "80px",
+                              borderRadius: "50%",
+                              background: "linear-gradient(135deg, #5C6AC4 0%, #9C6ADE 100%)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              boxShadow: "0 8px 32px rgba(92, 106, 196, 0.3)",
+                              animation: "colorPulse 1.5s ease-in-out infinite"
+                            }}>
+                              <span style={{ fontSize: "36px" }}>🎨</span>
+                            </div>
+                            <Text as="h3" variant="headingLg">
+                              Renkler Analiz Ediliyor...
+                            </Text>
+                            <div style={{ display: "flex", gap: "8px" }}>
+                              {["#E53935", "#1E88E5", "#43A047", "#FDD835", "#8E24AA"].map((color, i) => (
+                                <div 
+                                  key={i}
+                                  style={{
+                                    width: "24px",
+                                    height: "24px",
+                                    borderRadius: "50%",
+                                    background: color,
+                                    animation: `colorBounce 0.6s ease-in-out ${i * 0.1}s infinite`
+                                  }}
+                                />
+                              ))}
+                            </div>
+                            <Text as="p" variant="bodySm" color="subdued">
+                              AI fotoğrafları renklere göre eşleştiriyor...
+                            </Text>
+                            <style>{`
+                              @keyframes colorPulse {
+                                0%, 100% { transform: scale(1); }
+                                50% { transform: scale(1.05); }
+                              }
+                              @keyframes colorBounce {
+                                0%, 100% { transform: translateY(0); }
+                                50% { transform: translateY(-8px); }
+                              }
+                            `}</style>
+                          </div>
+                        )}
+
                         <Stack vertical spacing="base">
                           <Stack alignment="baseline" distribution="equalSpacing">
                             <Text as="h3" variant="headingSm">
