@@ -2783,42 +2783,6 @@ export default function VariantCreator() {
                 </Modal.Section>
               </Modal>
 
-              {/* Hazır prompt şablonları */}
-              <Stack spacing="tight" wrap>
-                <Button
-                  size="slim"
-                  onClick={() => {
-                    const example =
-                      "S'den 3XL'e kadar tüm bedenler, beyaz siyah lacivert renkler, fiyat 499 lira, 2XL ve üzeri için fiyat +100 lira, her varyant için 10 adet stok";
-                    setPrompt(example);
-                  }}
-                  disabled={isCreating || isLoadingPreview}
-                >
-                  Basic Tişört
-                </Button>
-                <Button
-                  size="slim"
-                  onClick={() => {
-                    const example =
-                      "36'dan 44'e kadar tüm numaralar, siyah beyaz kırmızı renkler, fiyat 1299 lira, 42 ve üzeri numaralar için fiyat +150 lira, her varyant için 5 adet stok";
-                    setPrompt(example);
-                  }}
-                  disabled={isCreating || isLoadingPreview}
-                >
-                  Sneaker
-                </Button>
-                <Button
-                  size="slim"
-                  onClick={() => {
-                    const example =
-                      "XS'den XL'e kadar bedenler, pudra siyah zümrüt yeşili renkler, fiyat 899 lira, XS için stok 3 adet, diğerleri için 8 adet stok";
-                    setPrompt(example);
-                  }}
-                  disabled={isCreating || isLoadingPreview}
-                >
-                  Elbise
-                </Button>
-              </Stack>
 
               {/* Hızlı Fiyat Kuralları - Gizli */}
               {false && (
