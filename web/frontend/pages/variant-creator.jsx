@@ -265,6 +265,11 @@ export default function VariantCreator() {
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 }); // Yükleme ilerleme durumu
   const [draggedImageId, setDraggedImageId] = useState(null); // Sürüklenen görsel ID'si
   const [dragOverImageId, setDragOverImageId] = useState(null); // Üzerine gelinen görsel ID'si
+  
+  // Offline/Network durumu
+  const [isOffline, setIsOffline] = useState(false); // Çevrimdışı mı?
+  const [pendingRetry, setPendingRetry] = useState(null); // Bekleyen retry işlemi: { type: 'preview'|'create'|'analyze'|'upload', data: any }
+  const [retryCountdown, setRetryCountdown] = useState(0); // Otomatik retry geri sayımı
 
   // İlk kullanım kontrolü
   const ONBOARDING_KEY = "autovariant_onboarding_completed";
@@ -322,6 +327,96 @@ export default function VariantCreator() {
       setShowOnboarding(false);
     } catch (error) {
       console.error("Onboarding kaydetme hatası:", error);
+    }
+  };
+
+  // Offline/Online detection
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      // Bağlantı geldiğinde bekleyen işlem varsa otomatik retry başlat
+      if (pendingRetry) {
+        setRetryCountdown(3); // 3 saniye sonra otomatik retry
+      }
+    };
+    
+    const handleOffline = () => {
+      setIsOffline(true);
+      setRetryCountdown(0); // Offline olunca geri sayımı durdur
+    };
+
+    // İlk yüklemede durumu kontrol et
+    if (typeof navigator !== 'undefined') {
+      setIsOffline(!navigator.onLine);
+    }
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [pendingRetry]);
+
+  // Otomatik retry geri sayımı
+  useEffect(() => {
+    if (retryCountdown > 0 && !isOffline) {
+      const timer = setTimeout(() => {
+        setRetryCountdown(retryCountdown - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (retryCountdown === 0 && pendingRetry && !isOffline) {
+      // Geri sayım bitti, retry yap
+      executeRetry();
+    }
+  }, [retryCountdown, isOffline]);
+
+  // Retry işlemini çalıştır
+  const executeRetry = async () => {
+    if (!pendingRetry) return;
+    
+    const { type, data } = pendingRetry;
+    setPendingRetry(null); // Retry başlamadan önce temizle
+    
+    try {
+      switch (type) {
+        case 'preview':
+          await handlePreview(data.prompt);
+          break;
+        case 'create':
+          await handleCreate();
+          break;
+        case 'analyze':
+          if (data.productId) {
+            await handleAnalyzeColorsForProduct(data.productId);
+          } else {
+            await handleAnalyzeColors();
+          }
+          break;
+        case 'upload':
+          await handleUploadImagesToShopify(data.productId);
+          break;
+        default:
+          break;
+      }
+    } catch (err) {
+      // Retry başarısız olursa tekrar kuyruğa ekle
+      console.error("Retry başarısız:", err);
+    }
+  };
+
+  // Bekleyen işlemi iptal et
+  const cancelPendingRetry = () => {
+    setPendingRetry(null);
+    setRetryCountdown(0);
+  };
+
+  // Manuel retry tetikle
+  const triggerManualRetry = () => {
+    if (pendingRetry) {
+      setRetryCountdown(0); // Hemen çalıştır
+      executeRetry();
     }
   };
 
@@ -537,10 +632,16 @@ export default function VariantCreator() {
       }
     } catch (err) {
       // Network hataları veya diğer beklenmeyen hatalar
-      const errorMsg = err.message.includes("Failed to fetch")
+      const isNetworkError = err.message.includes("Failed to fetch");
+      const errorMsg = isNetworkError
         ? "Bağlantı hatası: Sunucuya erişilemiyor. Lütfen internet bağlantınızı kontrol edin."
         : `Önizleme oluşturulurken bir hata oluştu: ${err.message}`;
       setError(errorMsg);
+      
+      // Network hatası ise retry kuyruğuna ekle
+      if (isNetworkError) {
+        setPendingRetry({ type: 'preview', data: { prompt: promptToUse } });
+      }
     } finally {
       setIsLoadingPreview(false);
     }
@@ -887,7 +988,16 @@ export default function VariantCreator() {
 
       setSuccess("Renk analizi tamamlandı! Lütfen eşleştirmeleri kontrol edin.");
     } catch (err) {
-      setError(`Renk analizi yapılırken bir hata oluştu: ${err.message}`);
+      const isNetworkError = err.message.includes("Failed to fetch");
+      const errorMsg = isNetworkError
+        ? "Bağlantı hatası: Sunucuya erişilemiyor. Lütfen internet bağlantınızı kontrol edin."
+        : `Renk analizi yapılırken bir hata oluştu: ${err.message}`;
+      setError(errorMsg);
+      
+      // Network hatası ise retry kuyruğuna ekle
+      if (isNetworkError) {
+        setPendingRetry({ type: 'analyze', data: { productId: null } });
+      }
     } finally {
       setIsAnalyzingColors(false);
     }
@@ -982,7 +1092,16 @@ export default function VariantCreator() {
 
       setSuccess(`${productImagesList.length} görsel için renk analizi tamamlandı!`);
     } catch (err) {
-      setError(`Renk analizi yapılırken bir hata oluştu: ${err.message}`);
+      const isNetworkError = err.message.includes("Failed to fetch");
+      const errorMsg = isNetworkError
+        ? "Bağlantı hatası: Sunucuya erişilemiyor. Lütfen internet bağlantınızı kontrol edin."
+        : `Renk analizi yapılırken bir hata oluştu: ${err.message}`;
+      setError(errorMsg);
+      
+      // Network hatası ise retry kuyruğuna ekle
+      if (isNetworkError) {
+        setPendingRetry({ type: 'analyze', data: { productId } });
+      }
     } finally {
       setIsAnalyzingColors(false);
     }
@@ -1064,11 +1183,17 @@ export default function VariantCreator() {
       });
       
     } catch (err) {
-      const errorMsg = err.message.includes("Failed to fetch")
+      const isNetworkError = err.message.includes("Failed to fetch");
+      const errorMsg = isNetworkError
         ? "Bağlantı hatası: Sunucuya erişilemiyor. Lütfen internet bağlantınızı kontrol edin."
         : `Görseller yüklenirken bir hata oluştu: ${err.message}`;
       setError(errorMsg);
       shopify.toast.show(errorMsg, { isError: true });
+      
+      // Network hatası ise retry kuyruğuna ekle
+      if (isNetworkError) {
+        setPendingRetry({ type: 'upload', data: { productId: productIdToUse } });
+      }
     } finally {
       setIsUploadingToShopify(false);
       setUploadingProductId(null);
@@ -1483,11 +1608,17 @@ export default function VariantCreator() {
       refetchProducts();
     } catch (err) {
       // Network hataları veya diğer beklenmeyen hatalar
-      const errorMsg = err.message.includes("Failed to fetch") 
+      const isNetworkError = err.message.includes("Failed to fetch");
+      const errorMsg = isNetworkError
         ? "Bağlantı hatası: Sunucuya erişilemiyor. Lütfen internet bağlantınızı kontrol edin."
         : `Varyantlar oluşturulurken bir hata oluştu: ${err.message}`;
       setError(errorMsg);
       shopify.toast.show(errorMsg, { isError: true });
+      
+      // Network hatası ise retry kuyruğuna ekle
+      if (isNetworkError) {
+        setPendingRetry({ type: 'create', data: {} });
+      }
     } finally {
       setIsCreating(false);
       setCreationProgress(null);
@@ -1690,6 +1821,89 @@ export default function VariantCreator() {
                 </Banner>
               )}
 
+              {/* Çevrimdışı Uyarısı */}
+              {isOffline && (
+                <Banner 
+                  status="warning" 
+                  title="📡 İnternet Bağlantısı Yok"
+                >
+                  <Stack vertical spacing="tight">
+                    <Text as="p" variant="bodyMd">
+                      Çevrimdışı görünüyorsunuz. Bağlantı sağlandığında işlemleriniz otomatik olarak devam edecek.
+                    </Text>
+                    <div style={{ 
+                      display: "flex", 
+                      alignItems: "center", 
+                      gap: "8px",
+                      padding: "8px 12px",
+                      background: "rgba(255, 255, 255, 0.5)",
+                      borderRadius: "6px",
+                      marginTop: "4px"
+                    }}>
+                      <div style={{
+                        width: "8px",
+                        height: "8px",
+                        borderRadius: "50%",
+                        background: "#dc2626",
+                        animation: "pulse 2s infinite"
+                      }} />
+                      <Text as="span" variant="bodySm" color="subdued">
+                        Bağlantı bekleniyor...
+                      </Text>
+                    </div>
+                  </Stack>
+                </Banner>
+              )}
+
+              {/* Otomatik Retry Bildirimi */}
+              {pendingRetry && !isOffline && retryCountdown > 0 && (
+                <Banner 
+                  status="info" 
+                  title="🔄 Otomatik Yeniden Deneme"
+                  onDismiss={cancelPendingRetry}
+                >
+                  <Stack vertical spacing="tight">
+                    <Text as="p" variant="bodyMd">
+                      {pendingRetry.type === 'preview' && "Önizleme işlemi"}
+                      {pendingRetry.type === 'create' && "Varyant oluşturma işlemi"}
+                      {pendingRetry.type === 'analyze' && "Renk analizi işlemi"}
+                      {pendingRetry.type === 'upload' && "Görsel yükleme işlemi"}
+                      {" "}{retryCountdown} saniye sonra tekrar denenecek...
+                    </Text>
+                    <Stack spacing="tight">
+                      <Button size="slim" onClick={triggerManualRetry}>
+                        Şimdi Dene
+                      </Button>
+                      <Button size="slim" plain onClick={cancelPendingRetry}>
+                        İptal
+                      </Button>
+                    </Stack>
+                  </Stack>
+                </Banner>
+              )}
+
+              {/* Bekleyen İşlem Bildirimi (bağlantı kesilmişken) */}
+              {pendingRetry && isOffline && (
+                <Banner 
+                  status="warning" 
+                  title="⏳ Bekleyen İşlem"
+                  onDismiss={cancelPendingRetry}
+                >
+                  <Stack vertical spacing="tight">
+                    <Text as="p" variant="bodyMd">
+                      {pendingRetry.type === 'preview' && "Önizleme işlemi"}
+                      {pendingRetry.type === 'create' && "Varyant oluşturma işlemi"}
+                      {pendingRetry.type === 'analyze' && "Renk analizi işlemi"}
+                      {pendingRetry.type === 'upload' && "Görsel yükleme işlemi"}
+                      {" "}bağlantı sağlandığında otomatik olarak tekrar denenecek.
+                    </Text>
+                    <Button size="slim" plain destructive onClick={cancelPendingRetry}>
+                      İşlemi İptal Et
+                    </Button>
+                  </Stack>
+                </Banner>
+              )}
+
               {error && (
                 <Banner 
                   status="critical" 
@@ -1704,9 +1918,9 @@ export default function VariantCreator() {
                   }
                 >
                   <Stack vertical spacing="tight">
-                    <Text as="p" variant="bodyMd">
-                      {error}
-                    </Text>
+                  <Text as="p" variant="bodyMd">
+                    {error}
+                  </Text>
                     
                     {/* Bağlantı hatası için yardım */}
                     {(error.includes("Bağlantı hatası") || error.includes("fetch") || error.includes("network")) && (
@@ -1719,7 +1933,7 @@ export default function VariantCreator() {
                         <Stack vertical spacing="extraTight">
                           <Text as="p" variant="bodySm" fontWeight="semibold">
                             💡 Çözüm Önerileri:
-                          </Text>
+                    </Text>
                           <Text as="p" variant="bodySm" color="subdued">
                             • İnternet bağlantınızı kontrol edin
                           </Text>
@@ -1874,9 +2088,9 @@ export default function VariantCreator() {
                   title={texts.success.title}
                 >
                   <Stack vertical spacing="tight">
-                    <Text as="p" variant="bodyMd">
-                      {success}
-                    </Text>
+                  <Text as="p" variant="bodyMd">
+                    {success}
+                  </Text>
                     {success.includes("varyant") && success.includes("oluşturuldu") && (
                       <Text as="p" variant="bodySm" color="subdued">
                         ✨ Harika! Şimdi ürün fotoğraflarını ekleyerek varyantları tamamlayabilirsiniz.
@@ -1917,10 +2131,10 @@ export default function VariantCreator() {
                             Varyantlar Oluşturuluyor
                           </Text>
                           <Text as="p" variant="bodySm" color="subdued">
-                            {useMultiSelect && selectedProductIds.length > 1
+                      {useMultiSelect && selectedProductIds.length > 1
                               ? `${selectedProductIds.length} ürün için işlem yapılıyor`
                               : `${creationProgress.total} varyant Shopify'a ekleniyor`}
-                          </Text>
+                    </Text>
                         </div>
                       </Stack>
 
@@ -1955,13 +2169,13 @@ export default function VariantCreator() {
                       </div>
 
                       <Stack alignment="center" spacing="tight">
-                        <Spinner size="small" />
-                        <Text as="span" variant="bodySm" color="subdued">
-                          {useMultiSelect && selectedProductIds.length > 1
+                      <Spinner size="small" />
+                      <Text as="span" variant="bodySm" color="subdued">
+                        {useMultiSelect && selectedProductIds.length > 1
                             ? "Toplu işlem birkaç dakika sürebilir..."
                             : "Bu işlem birkaç saniye sürecek..."}
-                        </Text>
-                      </Stack>
+                      </Text>
+                    </Stack>
 
                       {/* Tip */}
                       <div style={{
@@ -1974,7 +2188,7 @@ export default function VariantCreator() {
                           💡 <strong>İpucu:</strong> İşlem tamamlandığında otomatik olarak bir sonraki adıma geçilecek.
                         </Text>
                       </div>
-                    </Stack>
+                  </Stack>
 
                     <style>{`
                       @keyframes progressShine {
@@ -2000,7 +2214,7 @@ export default function VariantCreator() {
                       <div style={{ fontSize: "48px", marginBottom: "16px" }}>📦</div>
                       <Text as="h2" variant="headingLg">
                         Henüz ürün bulunamadı
-                      </Text>
+                    </Text>
                       <div style={{ marginTop: "12px", marginBottom: "20px" }}>
                         <Text as="p" variant="bodyMd" color="subdued">
                           Varyant oluşturmak için önce mağazanıza en az bir ürün eklemeniz gerekmektedir.
@@ -2162,15 +2376,15 @@ export default function VariantCreator() {
 
               {/* Template'ler - Kompakt buton olarak */}
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                <Button
+                      <Button
                   size="slim"
-                  onClick={() => setShowTemplates(!showTemplates)}
-                  ariaExpanded={showTemplates}
-                  ariaControls="templates-section"
+                        onClick={() => setShowTemplates(!showTemplates)}
+                        ariaExpanded={showTemplates}
+                        ariaControls="templates-section"
                   icon={showTemplates ? "▼" : "▶"}
                 >
                   📁 Şablonlar ({templates.length})
-                </Button>
+                      </Button>
                 <Button
                   size="slim"
                   onClick={() => setShowHistory(!showHistory)}
@@ -2182,11 +2396,11 @@ export default function VariantCreator() {
               </div>
               
               {/* Şablonlar Collapsible */}
-              <Collapsible
-                open={showTemplates}
-                id="templates-section"
-                transition={{ duration: "200ms", timingFunction: "ease-in-out" }}
-              >
+                    <Collapsible
+                      open={showTemplates}
+                      id="templates-section"
+                      transition={{ duration: "200ms", timingFunction: "ease-in-out" }}
+                    >
                 <div style={{ 
                   backgroundColor: "#f9fafb", 
                   borderRadius: "8px", 
@@ -2194,11 +2408,11 @@ export default function VariantCreator() {
                   marginTop: "8px"
                 }}>
                   {templates.length > 0 ? (
-                    <Stack vertical spacing="tight">
-                      {templates.map((template) => {
-                        const sizesText = template.sizes?.join(", ") || "Belirtilmemiş";
-                        const colorsText = template.colors?.join(", ") || "Belirtilmemiş";
-                        return (
+                      <Stack vertical spacing="tight">
+                          {templates.map((template) => {
+                            const sizesText = template.sizes?.join(", ") || "Belirtilmemiş";
+                            const colorsText = template.colors?.join(", ") || "Belirtilmemiş";
+                            return (
                           <div 
                             key={template.id}
                             className="template-card"
@@ -2226,8 +2440,8 @@ export default function VariantCreator() {
                           >
                             <div style={{ flex: 1, minWidth: "150px" }}>
                               <Text as="p" variant="bodySm" fontWeight="semibold">
-                                {template.name}
-                              </Text>
+                                        {template.name}
+                                      </Text>
                               <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginTop: "4px" }}>
                                 <Badge size="small">{sizesText}</Badge>
                                 <Badge size="small">{colorsText}</Badge>
@@ -2235,27 +2449,27 @@ export default function VariantCreator() {
                               </div>
                             </div>
                             <div style={{ display: "flex", gap: "6px" }}>
-                              <Button
+                                    <Button
                                 size="slim"
-                                primary
-                                onClick={() => useTemplate(template)}
-                                disabled={isCreating || isLoadingPreview}
-                              >
+                                      primary
+                                      onClick={() => useTemplate(template)}
+                                      disabled={isCreating || isLoadingPreview}
+                                    >
                                 Kullan
-                              </Button>
-                              <Button
+                                    </Button>
+                                    <Button
                                 size="slim"
-                                destructive
+                                      destructive
                                 plain
-                                onClick={() => removeTemplate(template.id)}
-                              >
+                                      onClick={() => removeTemplate(template.id)}
+                                    >
                                 Sil
-                              </Button>
+                                    </Button>
                             </div>
                           </div>
-                        );
-                      })}
-                    </Stack>
+                            );
+                          })}
+                        </Stack>
                   ) : (
                     <Text as="p" variant="bodySm" color="subdued" alignment="center">
                       Henüz şablon yok. Varyant oluşturduktan sonra kaydedin.
@@ -2265,11 +2479,11 @@ export default function VariantCreator() {
               </Collapsible>
 
               {/* Geçmiş Kayıtlar Collapsible */}
-              <Collapsible
-                open={showHistory}
-                id="history-section"
-                transition={{ duration: "200ms", timingFunction: "ease-in-out" }}
-              >
+                    <Collapsible
+                      open={showHistory}
+                      id="history-section"
+                      transition={{ duration: "200ms", timingFunction: "ease-in-out" }}
+                    >
                 <div style={{ 
                   backgroundColor: "#f9fafb", 
                   borderRadius: "8px", 
@@ -2277,7 +2491,7 @@ export default function VariantCreator() {
                   marginTop: "8px"
                 }}>
                   {history.length > 0 ? (
-                    <Stack vertical spacing="tight">
+                        <Stack vertical spacing="tight">
                       {history.slice(0, 5).map((item) => {
                         const sizesText = item.sizes?.join(", ") || "Belirtilmemiş";
                         const colorsText = item.colors?.join(", ") || "Belirtilmemiş";
@@ -2318,40 +2532,40 @@ export default function VariantCreator() {
                               <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
                                 <Badge size="small">{sizesText}</Badge>
                                 <Badge size="small">{colorsText}</Badge>
-                                {item.variantCount > 0 && (
+                                  {item.variantCount > 0 && (
                                   <Badge size="small">{item.variantCount} varyant</Badge>
-                                )}
+                                  )}
                               </div>
                               <Text as="p" variant="bodySm" color="subdued" style={{ marginTop: "4px" }}>
-                                {formattedDate}
-                              </Text>
+                                  {formattedDate}
+                                </Text>
                             </div>
                             <div style={{ display: "flex", gap: "6px" }}>
-                              <Button
-                                size="slim"
-                                onClick={() => useHistoryItem(item)}
-                                disabled={isCreating || isLoadingPreview}
-                              >
-                                Kullan
-                              </Button>
-                              <Button
-                                size="slim"
-                                plain
-                                destructive
-                                onClick={() => removeHistoryItem(item.id)}
-                              >
-                                Sil
-                              </Button>
+                                <Button
+                                  size="slim"
+                                  onClick={() => useHistoryItem(item)}
+                                  disabled={isCreating || isLoadingPreview}
+                                >
+                                  Kullan
+                                </Button>
+                                <Button
+                                  size="slim"
+                                  plain
+                                  destructive
+                                  onClick={() => removeHistoryItem(item.id)}
+                                >
+                                  Sil
+                                </Button>
                             </div>
                           </div>
                         );
                       })}
-                      {history.length > 5 && (
-                        <Text as="p" variant="bodySm" color="subdued" alignment="center">
-                          ... ve {history.length - 5} kayıt daha
-                        </Text>
-                      )}
-                    </Stack>
+                        {history.length > 5 && (
+                          <Text as="p" variant="bodySm" color="subdued" alignment="center">
+                            ... ve {history.length - 5} kayıt daha
+                          </Text>
+                        )}
+                      </Stack>
                   ) : (
                     <Text as="p" variant="bodySm" color="subdued" alignment="center">
                       Henüz geçmiş yok. Varyant oluşturdukça burada görünecek.
@@ -2558,39 +2772,39 @@ export default function VariantCreator() {
               )}
 
               <Stack vertical spacing="tight">
-                <Stack>
-                  <Button
-                    onClick={() => handlePreview()}
-                    disabled={
-                      (!selectedProductId && (!useMultiSelect || selectedProductIds.length === 0)) ||
-                      !prompt.trim() ||
-                      isCreating ||
-                      isLoadingPreview ||
-                      (productsData?.products &&
-                        productsData.products.length === 0)
-                    }
-                    loading={isLoadingPreview}
-                  >
-                    Önizleme
-                  </Button>
-                  <Button
-                    primary
-                    onClick={handleCreate}
-                    disabled={
-                      (!selectedProductId && (!useMultiSelect || selectedProductIds.length === 0)) ||
-                      !editableVariants ||
-                      editableVariants.length === 0 ||
-                      isCreating ||
-                      variantsLocked ||
-                      (productsData?.products &&
-                        productsData.products.length === 0)
-                    }
-                    loading={isCreating}
-                  >
-                    {useMultiSelect && selectedProductIds.length > 1 
-                      ? `${selectedProductIds.length} Ürüne Varyantları Oluştur`
-                      : "Varyantları Oluştur"}
-                  </Button>
+              <Stack>
+                <Button
+                  onClick={() => handlePreview()}
+                  disabled={
+                    (!selectedProductId && (!useMultiSelect || selectedProductIds.length === 0)) ||
+                    !prompt.trim() ||
+                    isCreating ||
+                    isLoadingPreview ||
+                    (productsData?.products &&
+                      productsData.products.length === 0)
+                  }
+                  loading={isLoadingPreview}
+                >
+                  Önizleme
+                </Button>
+                <Button
+                  primary
+                  onClick={handleCreate}
+                  disabled={
+                    (!selectedProductId && (!useMultiSelect || selectedProductIds.length === 0)) ||
+                    !editableVariants ||
+                    editableVariants.length === 0 ||
+                    isCreating ||
+                    variantsLocked ||
+                    (productsData?.products &&
+                      productsData.products.length === 0)
+                  }
+                  loading={isCreating}
+                >
+                  {useMultiSelect && selectedProductIds.length > 1 
+                    ? `${selectedProductIds.length} Ürüne Varyantları Oluştur`
+                    : "Varyantları Oluştur"}
+                </Button>
                 </Stack>
                 {(!editableVariants || editableVariants.length === 0) && !isLoadingPreview && (
                   <Text as="p" variant="bodySm" color="subdued">
@@ -2938,16 +3152,16 @@ export default function VariantCreator() {
                       {/* Desktop Table View */}
                       <div className="variant-table-desktop" style={{ marginTop: "1rem", overflowX: "auto" }}>
                         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "500px" }}>
-                          <thead>
+                        <thead>
                             <tr style={{ borderBottom: "2px solid #e1e3e5", background: "#f9fafb" }}>
                               <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px" }}>Beden</th>
                               <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px" }}>Renk</th>
                               <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px" }}>Fiyat (₺)</th>
                               <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px" }}>Stok</th>
                               <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: "600", fontSize: "13px", width: "60px" }}></th>
-                            </tr>
-                          </thead>
-                          <tbody>
+                          </tr>
+                        </thead>
+                        <tbody>
                             {editableVariants.map((variant, index) => (
                               <tr 
                                 key={variant.id} 
@@ -2957,49 +3171,49 @@ export default function VariantCreator() {
                                 }}
                               >
                                 <td style={{ padding: "8px 12px" }}>
-                                  <Badge>{variant.size}</Badge>
-                                </td>
+                                <Badge>{variant.size}</Badge>
+                              </td>
                                 <td style={{ padding: "8px 12px" }}>
-                                  <Badge>{variant.color}</Badge>
-                                </td>
+                                <Badge>{variant.color}</Badge>
+                              </td>
                                 <td style={{ padding: "8px 12px" }}>
-                                  <TextField
-                                    type="number"
-                                    value={variant.price}
-                                    onChange={(value) => updateVariantPrice(variant.id, value)}
-                                    prefix="₺"
-                                    autoComplete="off"
-                                    min="0"
-                                    step="0.01"
-                                    disabled={variantsLocked}
-                                  />
-                                </td>
+                                <TextField
+                                  type="number"
+                                  value={variant.price}
+                                  onChange={(value) => updateVariantPrice(variant.id, value)}
+                                  prefix="₺"
+                                  autoComplete="off"
+                                  min="0"
+                                step="0.01"
+                                disabled={variantsLocked}
+                                />
+                              </td>
                                 <td style={{ padding: "8px 12px" }}>
-                                  <TextField
-                                    type="number"
-                                    value={variant.stock.toString()}
-                                    onChange={(value) => updateVariantStock(variant.id, value)}
-                                    autoComplete="off"
-                                    min="0"
-                                    disabled={variantsLocked}
-                                  />
-                                </td>
+                                <TextField
+                                  type="number"
+                                  value={variant.stock.toString()}
+                                  onChange={(value) => updateVariantStock(variant.id, value)}
+                                  autoComplete="off"
+                                  min="0"
+                                disabled={variantsLocked}
+                                />
+                              </td>
                                 <td style={{ padding: "8px 12px", textAlign: "center" }}>
-                                  <Button
-                                    plain
-                                    destructive
-                                    disabled={variantsLocked}
-                                    onClick={() => deleteVariant(variant.id)}
-                                    accessibilityLabel="Varyantı sil"
-                                  >
-                                    ✕
-                                  </Button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                                <Button
+                                  plain
+                                  destructive
+                                disabled={variantsLocked}
+                                  onClick={() => deleteVariant(variant.id)}
+                                  accessibilityLabel="Varyantı sil"
+                                >
+                                  ✕
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
 
                       {/* Mobile Card View */}
                       <div className="variant-cards-mobile" style={{ display: "none", marginTop: "1rem" }}>
@@ -3554,7 +3768,7 @@ export default function VariantCreator() {
 
                                 {/* Sıralama ipucu */}
                                 {uploadedImages.some(img => img.colorMatch) && (
-                                  <div style={{ 
+                                <div style={{
                                     background: "#FFF8E6", 
                                     padding: "10px 14px", 
                                     borderRadius: "8px",
@@ -3901,9 +4115,9 @@ export default function VariantCreator() {
         <Modal.Section>
           <Stack vertical spacing="base">
             <Banner status="info">
-              <Text as="p" variant="bodyMd">
+            <Text as="p" variant="bodyMd">
                 Bu varyant kombinasyonunu şablon olarak kaydedin. Daha sonra "Şablonlar" butonundan tek tıkla tekrar kullanabilirsiniz.
-              </Text>
+            </Text>
             </Banner>
             <TextField
               label="Şablon İsmi"
@@ -3991,10 +4205,10 @@ export default function VariantCreator() {
               <div>
                 <Text as="p" variant="bodyMd" fontWeight="bold">
                   <span style={{ color: "white" }}>Tamamlandı!</span>
-                </Text>
+              </Text>
                 <Text as="p" variant="bodySm">
                   <span style={{ color: "rgba(255,255,255,0.85)" }}>{lastUploadStats.productName}</span>
-                </Text>
+              </Text>
               </div>
             </Stack>
           </div>
@@ -4004,7 +4218,7 @@ export default function VariantCreator() {
                 <span style={{ fontSize: "16px" }}>📸</span>
                 <Text as="span" variant="bodySm">
                   <strong>{lastUploadStats.uploaded}</strong> görsel yüklendi
-                </Text>
+              </Text>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ fontSize: "16px" }}>🏷️</span>
