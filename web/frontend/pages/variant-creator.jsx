@@ -534,6 +534,18 @@ export default function VariantCreator() {
       return;
     }
 
+    // Prompt uzunluk kontrolü (max 1000 karakter)
+    const MAX_PROMPT_LENGTH = 1000;
+    if (promptToUse.length > MAX_PROMPT_LENGTH) {
+      setError(
+        `⚠️ Prompt çok uzun!\n\n` +
+        `Mevcut: ${promptToUse.length} karakter\n` +
+        `Maksimum: ${MAX_PROMPT_LENGTH} karakter\n\n` +
+        `Lütfen prompt'unuzu kısaltın.`
+      );
+      return;
+    }
+
     setError(null);
     setPreview(null);
     setIsLoadingPreview(true);
