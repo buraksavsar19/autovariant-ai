@@ -3464,18 +3464,23 @@ export default function VariantCreator() {
                                 {/* Sıralama ipucu */}
                                 {uploadedImages.some(img => img.colorMatch) && (
                                   <div style={{ 
-                                    background: "#f0f7ff", 
-                                    padding: "8px 12px", 
-                                    borderRadius: "6px",
-                                    marginBottom: "8px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "8px"
+                                    background: "#FFF8E6", 
+                                    padding: "10px 14px", 
+                                    borderRadius: "8px",
+                                    marginBottom: "12px",
+                                    border: "1px solid #FFD79D"
                                   }}>
-                                    <span>🔀</span>
-                                    <Text as="span" variant="bodySm" color="subdued">
-                                      Fotoğrafları sürükleyerek sıralayabilirsiniz
-                                    </Text>
+                                    <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                                      <span style={{ fontSize: "18px" }}>💡</span>
+                                      <div>
+                                        <Text as="span" variant="bodySm" fontWeight="semibold">
+                                          Sıralama önemli!
+                                        </Text>
+                                        <Text as="p" variant="bodySm" color="subdued" style={{ marginTop: "4px" }}>
+                                          Fotoğrafları sürükleyerek sıralayabilirsiniz. <strong style={{ color: "#6D5E00" }}>1. sıradaki fotoğraf Shopify'da ana ürün görseli olarak görünecek.</strong>
+                                        </Text>
+                                      </div>
+                                    </div>
                                   </div>
                                 )}
 

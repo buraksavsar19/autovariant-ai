@@ -74,32 +74,52 @@ RENK ÇIKARMA KURALLARI (ÇOK ÖNEMLİ):
    - "Temel fiyat 500" → basePrice: 500
    - Eğer sadece artırma/azaltma varsa (örn: "+100 lira"), basePrice: null olmalı
 
-9. Stok kuralları:
+9. STOK KURALLARI (ÇOK ÖNEMLİ - DİKKATLİ OKU):
+   defaultStock: Tüm varyantlar için geçerli varsayılan stok miktarı (sayı olarak)
+   stockRules: Belirli varyantlar için özel stok kuralları
+   
+   STOK İFADELERİ VE KARŞILIKLARI:
    - "Her varyant için 10 adet stok" → defaultStock: 10
-   - "2XL için 5 adet, diğerleri için 10 adet" → stockRules: [{"condition": "2XL", "quantity": 5}, {"condition": "tümü", "quantity": 10}]
-   - "Stok 20" → defaultStock: 20
+   - "tümü için 10 adet stok" → defaultStock: 10
+   - "hepsi için 10 adet" → defaultStock: 10
+   - "her biri 10 adet" → defaultStock: 10
+   - "10 adet stok" → defaultStock: 10
+   - "stok 10" → defaultStock: 10
+   - "stok: 10" → defaultStock: 10
+   - "10 stok" → defaultStock: 10
+   - "10'ar adet" → defaultStock: 10
+   - "tüm varyantlar 10 adet" → defaultStock: 10
+   - "hepsine 10 adet" → defaultStock: 10
+   - "varyant başına 10" → defaultStock: 10
+   
+   ÖZEL STOK KURALLARI:
+   - "2XL için 5 adet, diğerleri için 10 adet" → stockRules: [{"condition": "2XL", "quantity": 5}], defaultStock: 10
+   - "Kırmızı için 20 adet" → stockRules: [{"condition": "Kırmızı", "quantity": 20}]
+   
+   ÖNEMLİ: Eğer prompt'ta herhangi bir stok miktarı belirtilmişse, MUTLAKA defaultStock veya stockRules'a yaz!
+   Stok belirtilmemişse defaultStock: null olmalı.
 
 10. Sadece JSON döndür, açıklama yapma. JSON formatı MUTLAKA geçerli olmalı!
 
 ÖRNEKLER:
 
-Örnek 1:
+Örnek 1 (TEMEL - FİYAT VE STOK):
 Prompt: "S'den 3XL'e kadar kırmızı mavi sarı yeşil renklerinde, fiyat 500 lira, her varyant için 10 adet stok"
 Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Kırmızı", "Mavi", "Sarı", "Yeşil"], "priceRules": [], "basePrice": 500, "stockRules": [], "defaultStock": 10}
 
-Örnek 2:
+Örnek 2 (ÖZEL STOK KURALI):
 Prompt: "S'den 3XL'e kadar kırmızı mavi renklerinde, 2XL ve sonrası için fiyat +100 lira, 2XL için 5 adet stok"
 Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Kırmızı", "Mavi"], "priceRules": [{"condition": "2XL ve üzeri", "increase": 100}], "basePrice": null, "stockRules": [{"condition": "2XL", "quantity": 5}], "defaultStock": null}
 
-Örnek 3:
+Örnek 3 (FİYAT KURALLARI):
 Prompt: "S M L XL 2XL bedenler, kırmızı yeşil mavi renkler, XL'den büyük bedenler için -50 lira, kırmızı için +20 lira"
 Response: {"sizes": ["S", "M", "L", "XL", "2XL"], "colors": ["Kırmızı", "Yeşil", "Mavi"], "priceRules": [{"condition": "XL ve üzeri", "decrease": 50}, {"condition": "Kırmızı", "increase": 20}], "basePrice": null, "stockRules": [], "defaultStock": null}
 
-Örnek 4:
+Örnek 4 (TEMEL FİYAT + ARTIŞ):
 Prompt: "S'den 3XL'e kadar, kırmızı mavi renkler, fiyat 300 lira, 2XL ve sonrası için +100 lira ekstra"
 Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Kırmızı", "Mavi"], "priceRules": [{"condition": "2XL ve üzeri", "increase": 100}], "basePrice": 300, "stockRules": [], "defaultStock": null}
 
-Örnek 5 (BOŞLUKLA AYRILAN RENKLER - ÖNEMLİ!):
+Örnek 5 (BOŞLUKLA AYRILAN RENKLER):
 Prompt: "S'den 3XL'e kadar tüm bedenler, kırmızı beyaz renkler, fiyat 500 lira"
 Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Kırmızı", "Beyaz"], "priceRules": [], "basePrice": 500, "stockRules": [], "defaultStock": null}
 
@@ -110,6 +130,26 @@ Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Siyah", "Be
 Örnek 7 (VİRGÜLLE AYRILAN):
 Prompt: "M, L, XL bedenler, beyaz, lacivert, bordo renkler"
 Response: {"sizes": ["M", "L", "XL"], "colors": ["Beyaz", "Lacivert", "Bordo"], "priceRules": [], "basePrice": null, "stockRules": [], "defaultStock": null}
+
+Örnek 8 (STOK - "TÜMÜ İÇİN" İFADESİ - ÇOK ÖNEMLİ!):
+Prompt: "S'den 3XL'e kadar, kırmızı yeşil mavi renkler, tümü için 10 adet stok"
+Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Kırmızı", "Yeşil", "Mavi"], "priceRules": [], "basePrice": null, "stockRules": [], "defaultStock": 10}
+
+Örnek 9 (STOK - KISA İFADE):
+Prompt: "S M L XL bedenler, siyah beyaz renkler, 10 stok"
+Response: {"sizes": ["S", "M", "L", "XL"], "colors": ["Siyah", "Beyaz"], "priceRules": [], "basePrice": null, "stockRules": [], "defaultStock": 10}
+
+Örnek 10 (STOK - "HEPSİ" İFADESİ):
+Prompt: "M L XL 2XL bedenler, mavi kırmızı, fiyat 600, hepsi için 15 adet"
+Response: {"sizes": ["M", "L", "XL", "2XL"], "colors": ["Mavi", "Kırmızı"], "priceRules": [], "basePrice": 600, "stockRules": [], "defaultStock": 15}
+
+Örnek 11 (STOK - "ADET" SONRA):
+Prompt: "S'den 2XL'e kadar, yeşil sarı turuncu, 20 adet stok"
+Response: {"sizes": ["S", "M", "L", "XL", "2XL"], "colors": ["Yeşil", "Sarı", "Turuncu"], "priceRules": [], "basePrice": null, "stockRules": [], "defaultStock": 20}
+
+Örnek 12 (HER ŞEY BİRLİKTE):
+Prompt: "S M L XL 2XL 3XL bedenler, siyah beyaz gri lacivert renkler, fiyat 750 lira, 2XL ve üzeri için +150 lira, tümü için 25 adet"
+Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Siyah", "Beyaz", "Gri", "Lacivert"], "priceRules": [{"condition": "2XL ve üzeri", "increase": 150}], "basePrice": 750, "stockRules": [], "defaultStock": 25}
 
 YANLIŞ ÖRNEK (Standart eklenmemeli):
 {"sizes": ["S", "M", "L"], "colors": ["Standart", "Kırmızı"], ...} ❌
