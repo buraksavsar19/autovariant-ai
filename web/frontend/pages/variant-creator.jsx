@@ -1457,11 +1457,11 @@ export default function VariantCreator() {
                 backgroundColor: "#f6f6f7",
                 borderRadius: "8px"
               }}>
-                <div style={{
+                <div className="step-indicator-container" style={{
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  gap: "8px"
+                  gap: "4px"
                 }}>
                   {stepItems.map((step, index) => {
                     const status = getStepStatus(step.id);
@@ -1472,9 +1472,10 @@ export default function VariantCreator() {
                     return (
                       <div key={step.id} style={{ display: "flex", alignItems: "center", flex: isLast ? "0 0 auto" : "1 1 0" }}>
                         <div
+                          className="step-circle"
                           style={{
-                            width: 22,
-                            height: 22,
+                            width: 24,
+                            height: 24,
                             borderRadius: "999px",
                             backgroundColor: bgColor,
                             display: "flex",
@@ -1484,11 +1485,14 @@ export default function VariantCreator() {
                             fontSize: 11,
                             fontWeight: 600,
                             flexShrink: 0,
+                            boxShadow: status === "current" ? "0 2px 8px rgba(44, 110, 203, 0.3)" : "none",
+                            transition: "all 0.2s ease"
                           }}
                         >
                           {status === "done" ? "✓" : step.id + 1}
                         </div>
                         <span
+                          className="step-label"
                           style={{ 
                             marginLeft: 4, 
                             whiteSpace: "nowrap", 
@@ -1502,14 +1506,15 @@ export default function VariantCreator() {
                         </span>
                         {!isLast && (
                           <div
+                            className="step-connector"
                             style={{
                               flex: 1,
                               height: 2,
                               backgroundColor: currentStep > step.id ? "#5c6ac4" : "#e1e3e5",
-                              marginLeft: 8,
-                              marginRight: 8,
+                              marginLeft: 6,
+                              marginRight: 6,
                               borderRadius: 999,
-                              minWidth: 12,
+                              minWidth: 8,
                             }}
                           />
                         )}
@@ -1517,6 +1522,30 @@ export default function VariantCreator() {
                     );
                   })}
                 </div>
+                {/* Mobile Responsive Styles */}
+                <style>{`
+                  @media (max-width: 480px) {
+                    .step-label {
+                      display: none !important;
+                    }
+                    .step-circle {
+                      width: 28px !important;
+                      height: 28px !important;
+                      font-size: 12px !important;
+                    }
+                    .step-connector {
+                      min-width: 16px !important;
+                      margin-left: 4px !important;
+                      margin-right: 4px !important;
+                    }
+                  }
+                  @media (max-width: 360px) {
+                    .step-circle {
+                      width: 24px !important;
+                      height: 24px !important;
+                    }
+                  }
+                `}</style>
               </div>
               <Text as="h2" variant="headingMd">
                 Ürün Varyantlarını Otomatik Oluştur
@@ -2681,65 +2710,140 @@ export default function VariantCreator() {
                     )}
                   </Stack>
                   {editableVariants.length > 0 && (
-                    <div style={{ marginTop: "1rem", overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <thead>
-                          <tr style={{ borderBottom: "2px solid #e1e3e5" }}>
-                            <th style={{ padding: "12px", textAlign: "left", fontWeight: "600" }}>Beden</th>
-                            <th style={{ padding: "12px", textAlign: "left", fontWeight: "600" }}>Renk</th>
-                            <th style={{ padding: "12px", textAlign: "left", fontWeight: "600" }}>Fiyat (₺)</th>
-                            <th style={{ padding: "12px", textAlign: "left", fontWeight: "600" }}>Stok (Adet)</th>
-                            <th style={{ padding: "12px", textAlign: "center", fontWeight: "600", width: "80px" }}>İşlem</th>
-                          </tr>
-                        </thead>
-                        <tbody>
+                    <>
+                      {/* Desktop Table View */}
+                      <div className="variant-table-desktop" style={{ marginTop: "1rem", overflowX: "auto" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "500px" }}>
+                          <thead>
+                            <tr style={{ borderBottom: "2px solid #e1e3e5", background: "#f9fafb" }}>
+                              <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px" }}>Beden</th>
+                              <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px" }}>Renk</th>
+                              <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px" }}>Fiyat (₺)</th>
+                              <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px" }}>Stok</th>
+                              <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: "600", fontSize: "13px", width: "60px" }}></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {editableVariants.map((variant, index) => (
+                              <tr 
+                                key={variant.id} 
+                                style={{ 
+                                  borderBottom: "1px solid #e1e3e5",
+                                  background: index % 2 === 0 ? "#fff" : "#fafbfc"
+                                }}
+                              >
+                                <td style={{ padding: "8px 12px" }}>
+                                  <Badge>{variant.size}</Badge>
+                                </td>
+                                <td style={{ padding: "8px 12px" }}>
+                                  <Badge>{variant.color}</Badge>
+                                </td>
+                                <td style={{ padding: "8px 12px" }}>
+                                  <TextField
+                                    type="number"
+                                    value={variant.price}
+                                    onChange={(value) => updateVariantPrice(variant.id, value)}
+                                    prefix="₺"
+                                    autoComplete="off"
+                                    min="0"
+                                    step="0.01"
+                                    disabled={variantsLocked}
+                                  />
+                                </td>
+                                <td style={{ padding: "8px 12px" }}>
+                                  <TextField
+                                    type="number"
+                                    value={variant.stock.toString()}
+                                    onChange={(value) => updateVariantStock(variant.id, value)}
+                                    autoComplete="off"
+                                    min="0"
+                                    disabled={variantsLocked}
+                                  />
+                                </td>
+                                <td style={{ padding: "8px 12px", textAlign: "center" }}>
+                                  <Button
+                                    plain
+                                    destructive
+                                    disabled={variantsLocked}
+                                    onClick={() => deleteVariant(variant.id)}
+                                    accessibilityLabel="Varyantı sil"
+                                  >
+                                    ✕
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Mobile Card View */}
+                      <div className="variant-cards-mobile" style={{ display: "none", marginTop: "1rem" }}>
+                        <Stack vertical spacing="tight">
                           {editableVariants.map((variant) => (
-                            <tr key={variant.id} style={{ borderBottom: "1px solid #e1e3e5" }}>
-                              <td style={{ padding: "12px" }}>
-                                <Badge>{variant.size}</Badge>
-                              </td>
-                              <td style={{ padding: "12px" }}>
-                                <Badge>{variant.color}</Badge>
-                              </td>
-                              <td style={{ padding: "12px" }}>
+                            <div 
+                              key={variant.id}
+                              style={{
+                                background: "#fff",
+                                border: "1px solid #e1e3e5",
+                                borderRadius: "8px",
+                                padding: "12px"
+                              }}
+                            >
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                                <div style={{ display: "flex", gap: "6px" }}>
+                                  <Badge>{variant.size}</Badge>
+                                  <Badge>{variant.color}</Badge>
+                                </div>
+                                <Button
+                                  plain
+                                  destructive
+                                  disabled={variantsLocked}
+                                  onClick={() => deleteVariant(variant.id)}
+                                  accessibilityLabel="Varyantı sil"
+                                >
+                                  ✕
+                                </Button>
+                              </div>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                                 <TextField
+                                  label="Fiyat"
                                   type="number"
                                   value={variant.price}
                                   onChange={(value) => updateVariantPrice(variant.id, value)}
                                   prefix="₺"
                                   autoComplete="off"
                                   min="0"
-                                step="0.01"
-                                disabled={variantsLocked}
+                                  step="0.01"
+                                  disabled={variantsLocked}
                                 />
-                              </td>
-                              <td style={{ padding: "12px" }}>
                                 <TextField
+                                  label="Stok"
                                   type="number"
                                   value={variant.stock.toString()}
                                   onChange={(value) => updateVariantStock(variant.id, value)}
-                                  suffix="adet"
                                   autoComplete="off"
                                   min="0"
-                                disabled={variantsLocked}
+                                  disabled={variantsLocked}
                                 />
-                              </td>
-                              <td style={{ padding: "12px", textAlign: "center" }}>
-                                <Button
-                                  plain
-                                  destructive
-                                disabled={variantsLocked}
-                                  onClick={() => deleteVariant(variant.id)}
-                                  accessibilityLabel="Varyantı sil"
-                                >
-                                  ✕
-                                </Button>
-                              </td>
-                            </tr>
+                              </div>
+                            </div>
                           ))}
-                        </tbody>
-                      </table>
-                    </div>
+                        </Stack>
+                      </div>
+
+                      {/* Mobile responsive styles */}
+                      <style>{`
+                        @media (max-width: 600px) {
+                          .variant-table-desktop {
+                            display: none !important;
+                          }
+                          .variant-cards-mobile {
+                            display: block !important;
+                          }
+                        }
+                      `}</style>
+                    </>
                   )}
                 </div>
 
@@ -3143,20 +3247,25 @@ export default function VariantCreator() {
                                   </Banner>
                                 )}
 
-                                <div style={{
-                                  display: "grid",
-                                  gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
-                                  gap: "1rem",
-                                }}>
+                                <div 
+                                  className="image-grid"
+                                  style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+                                    gap: "12px",
+                                  }}
+                                >
                                   {uploadedImages.map((img) => (
                                     <div
                                       key={img.id}
+                                      className="image-card"
                                       style={{
                                         position: "relative",
                                         border: "2px solid #e1e3e5",
                                         borderRadius: "8px",
                                         padding: "8px",
                                         backgroundColor: "#fff",
+                                        transition: "box-shadow 0.2s ease"
                                       }}
                                     >
                                       <img
@@ -3164,7 +3273,7 @@ export default function VariantCreator() {
                                         alt="Preview"
                                         style={{
                                           width: "100%",
-                                          height: "150px",
+                                          height: "120px",
                                           objectFit: "cover",
                                           borderRadius: "4px",
                                         }}
@@ -3230,6 +3339,27 @@ export default function VariantCreator() {
                                     </div>
                                   ))}
                                 </div>
+
+                                {/* Image Grid Mobile Styles */}
+                                <style>{`
+                                  @media (max-width: 400px) {
+                                    .image-grid {
+                                      grid-template-columns: repeat(2, 1fr) !important;
+                                      gap: 8px !important;
+                                    }
+                                    .image-card img {
+                                      height: 100px !important;
+                                    }
+                                  }
+                                  @media (max-width: 320px) {
+                                    .image-grid {
+                                      grid-template-columns: 1fr !important;
+                                    }
+                                  }
+                                  .image-card:hover {
+                                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                                  }
+                                `}</style>
                               </Stack>
                             )}
                           </>
