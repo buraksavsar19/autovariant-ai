@@ -637,11 +637,24 @@ export default function VariantCreator() {
             });
           }
 
+          // Karşılaştırma fiyatını hesapla (varsa)
+          let variantCompareAtPrice = data.parsed.compareAtPrice || null;
+          
+          // Karşılaştırma fiyatı kurallarını uygula (varsa)
+          if (data.parsed.compareAtPriceRules && data.parsed.compareAtPriceRules.length > 0) {
+            data.parsed.compareAtPriceRules.forEach((rule) => {
+              if (shouldApplyPriceRule(rule.condition || "", size, color)) {
+                variantCompareAtPrice = rule.value || variantCompareAtPrice;
+              }
+            });
+          }
+
           variants.push({
             id: `${sizeIndex}-${colorIndex}`,
             size,
             color,
             price: variantPrice.toFixed(2),
+            compareAtPrice: variantCompareAtPrice ? parseFloat(variantCompareAtPrice).toFixed(2) : null,
             stock: variantStock,
           });
         });
@@ -733,6 +746,24 @@ export default function VariantCreator() {
     // Son düzenlenen değeri kaydet ve banner'ı göster
     setLastEditedValue({ type: 'stock', value: stockValue, variantId });
     setShowApplyAllBanner(true);
+  };
+
+  const updateVariantCompareAtPrice = (variantId, newCompareAtPrice) => {
+    if (variantsLocked) return;
+    // Boş string ise null yap, değilse sayıya çevir
+    const compareValue = newCompareAtPrice === "" ? null : (parseFloat(newCompareAtPrice) || null);
+    setEditableVariants(prev => 
+      prev.map(v => 
+        v.id === variantId 
+          ? { ...v, compareAtPrice: compareValue }
+          : v
+      )
+    );
+    // Son düzenlenen değeri kaydet ve banner'ı göster
+    if (compareValue !== null) {
+      setLastEditedValue({ type: 'compareAtPrice', value: compareValue, variantId });
+      setShowApplyAllBanner(true);
+    }
   };
 
   // Tüm varyantlara değer uygula
@@ -3230,9 +3261,12 @@ export default function VariantCreator() {
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <span style={{ fontSize: "20px" }}>💡</span>
                         <Text as="span" variant="bodyMd">
-                          <strong>{lastEditedValue.type === 'price' ? 'Fiyat' : 'Stok'}</strong> değerini{' '}
+                          <strong>{
+                            lastEditedValue.type === 'price' ? 'Fiyat' : 
+                            lastEditedValue.type === 'compareAtPrice' ? 'Karşılaştırma Fiyatı' : 'Stok'
+                          }</strong> değerini{' '}
                           <strong>
-                            {lastEditedValue.type === 'price' 
+                            {lastEditedValue.type === 'price' || lastEditedValue.type === 'compareAtPrice'
                               ? `₺${lastEditedValue.value}` 
                               : `${lastEditedValue.value} adet`}
                           </strong>{' '}
@@ -3266,6 +3300,7 @@ export default function VariantCreator() {
                               <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px" }}>Beden</th>
                               <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px" }}>Renk</th>
                               <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px" }}>Fiyat (₺)</th>
+                              <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px" }}>Karşılaştırma (₺)</th>
                               <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px" }}>Stok</th>
                               <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: "600", fontSize: "13px", width: "60px" }}></th>
                           </tr>
@@ -3295,6 +3330,19 @@ export default function VariantCreator() {
                                   min="0"
                                 step="0.01"
                                 disabled={variantsLocked}
+                                />
+                              </td>
+                                <td style={{ padding: "8px 12px" }}>
+                                <TextField
+                                  type="number"
+                                  value={variant.compareAtPrice || ""}
+                                  onChange={(value) => updateVariantCompareAtPrice(variant.id, value)}
+                                  prefix="₺"
+                                  placeholder="-"
+                                  autoComplete="off"
+                                  min="0"
+                                  step="0.01"
+                                  disabled={variantsLocked}
                                 />
                               </td>
                                 <td style={{ padding: "8px 12px" }}>
@@ -3352,13 +3400,25 @@ export default function VariantCreator() {
                                   ✕
                                 </Button>
                               </div>
-                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
                                 <TextField
                                   label="Fiyat"
                                   type="number"
                                   value={variant.price}
                                   onChange={(value) => updateVariantPrice(variant.id, value)}
                                   prefix="₺"
+                                  autoComplete="off"
+                                  min="0"
+                                  step="0.01"
+                                  disabled={variantsLocked}
+                                />
+                                <TextField
+                                  label="Karş. Fiyat"
+                                  type="number"
+                                  value={variant.compareAtPrice || ""}
+                                  onChange={(value) => updateVariantCompareAtPrice(variant.id, value)}
+                                  prefix="₺"
+                                  placeholder="-"
                                   autoComplete="off"
                                   min="0"
                                   step="0.01"

@@ -19,6 +19,8 @@ export async function parseVariantPromptWithGPT(prompt, apiKey) {
 - colors: Renk listesi (örnek: ["Kırmızı", "Yeşil", "Mavi"])
 - priceRules: Fiyat kuralları (örnek: [{"condition": "2XL ve üzeri", "increase": 100}])
 - basePrice: Temel fiyat (eğer belirtilmişse, sayı olarak: 500)
+- compareAtPrice: Karşılaştırma fiyatı / İndirimli fiyat öncesi (eğer belirtilmişse, sayı olarak: 600)
+- compareAtPriceRules: Karşılaştırma fiyatı kuralları (örnek: [{"condition": "2XL ve üzeri", "value": 700}])
 - stockRules: Stok kuralları (örnek: [{"condition": "tümü", "quantity": 10}, {"condition": "2XL", "quantity": 5}])
 - defaultStock: Varsayılan stok miktarı (eğer belirtilmişse, sayı olarak: 10)
 
@@ -73,6 +75,24 @@ RENK ÇIKARMA KURALLARI (ÇOK ÖNEMLİ):
    - "500 lira fiyat" → basePrice: 500
    - "Temel fiyat 500" → basePrice: 500
    - Eğer sadece artırma/azaltma varsa (örn: "+100 lira"), basePrice: null olmalı
+
+8.5. KARŞILAŞTIRMA FİYATI (compareAtPrice) - İNDİRİMLİ ÜRÜNLER İÇİN:
+   Karşılaştırma fiyatı = Eski fiyat (üstü çizili gösterilir). Satış fiyatı (basePrice) bundan DÜŞÜK olmalı.
+   
+   KARŞILAŞTIRMA FİYATI İFADELERİ:
+   - "karşılaştırma fiyatı 600" → compareAtPrice: 600
+   - "eski fiyat 600" → compareAtPrice: 600
+   - "liste fiyatı 600" → compareAtPrice: 600
+   - "600 liradan 500 liraya indirimli" → compareAtPrice: 600, basePrice: 500
+   - "indirimli fiyat 500, eski fiyat 600" → compareAtPrice: 600, basePrice: 500
+   - "%20 indirimli, eski fiyat 600" → compareAtPrice: 600, basePrice: 480 (otomatik hesapla)
+   - "karşılaştırma 700 lira" → compareAtPrice: 700
+   
+   BEDEN/RENK BAZLI KARŞILAŞTIRMA FİYATI:
+   - "2XL için karşılaştırma fiyatı 800" → compareAtPriceRules: [{"condition": "2XL", "value": 800}]
+   - "Kırmızı için eski fiyat 700" → compareAtPriceRules: [{"condition": "Kırmızı", "value": 700}]
+   
+   ÖNEMLİ: Eğer karşılaştırma fiyatı belirtilmemişse → compareAtPrice: null, compareAtPriceRules: []
 
 9. STOK KURALLARI (ÇOK ÇOK ÖNEMLİ - DİKKATLİ OKU!):
    defaultStock: Tüm varyantlar için geçerli varsayılan stok miktarı (SAYI olarak, null değil!)
@@ -222,6 +242,8 @@ Doğru: {"stockRules": [], "defaultStock": 10} ✓`;
       colors: Array.isArray(result.colors) ? result.colors : [],
       priceRules: Array.isArray(result.priceRules) ? result.priceRules : [],
       basePrice: result.basePrice ? parseFloat(result.basePrice) : null,
+      compareAtPrice: result.compareAtPrice ? parseFloat(result.compareAtPrice) : null,
+      compareAtPriceRules: Array.isArray(result.compareAtPriceRules) ? result.compareAtPriceRules : [],
       stockRules: Array.isArray(result.stockRules) ? result.stockRules : [],
       defaultStock: result.defaultStock ? parseInt(result.defaultStock) : null,
     };
@@ -595,6 +617,7 @@ export async function createVariants(session, productId, parsedVariant) {
         size: variant.size,
         color: variant.color,
         price: parseFloat(variant.price).toFixed(2),
+        compareAtPrice: variant.compareAtPrice ? parseFloat(variant.compareAtPrice).toFixed(2) : null,
         inventoryQuantity: Math.max(0, parseInt(variant.stock) || 0),
       });
     });
@@ -678,10 +701,16 @@ export async function createVariants(session, productId, parsedVariant) {
           console.log(`Kombinasyon stok bilgisi: ${size}/${color} = ${finalStock} adet`);
         }
 
+        // Karşılaştırma fiyatı varsa ekle
+        let variantCompareAtPrice = null;
+        // Not: Bu branch zaten kullanılmıyor (editableVariants kullanılıyor), 
+        // ama yine de ekleyelim tutarlılık için
+
         combinations.push({
           size,
           color,
           price: variantPrice.toFixed(2),
+          compareAtPrice: variantCompareAtPrice,
           inventoryQuantity: finalStock, // Negatif olamaz
         });
       }
@@ -857,6 +886,7 @@ export async function createVariants(session, productId, parsedVariant) {
       
       return {
         price: combo.price,
+        compareAtPrice: combo.compareAtPrice || null,
         optionValues: optionValues,
         inventoryQuantities: hasStock ? [
           {
@@ -971,6 +1001,7 @@ export async function createVariants(session, productId, parsedVariant) {
 
       return {
         price: combo.price,
+        compareAtPrice: combo.compareAtPrice || null,
         options: optionsArray, // Sadece Beden ve Renk
         inventoryPolicy: "CONTINUE", // Stok yönetimi
         inventoryQuantity: combo.inventoryQuantity || 0,
@@ -981,6 +1012,7 @@ export async function createVariants(session, productId, parsedVariant) {
     variants = combinations.map((combo) => {
       return {
         price: combo.price,
+        compareAtPrice: combo.compareAtPrice || null,
         options: [combo.size, combo.color], // Options yoksa direkt değerleri gönder
         inventoryPolicy: "CONTINUE",
         inventoryQuantity: combo.inventoryQuantity || 0,
@@ -1056,6 +1088,7 @@ export async function createVariants(session, productId, parsedVariant) {
 
       return {
         price: variant.price,
+        compareAtPrice: combo?.compareAtPrice || variant.compareAtPrice || null,
         optionValues: optionValues,
         inventoryPolicy: variant.inventoryPolicy,
         inventoryQuantities: hasStock ? [
@@ -1233,6 +1266,7 @@ export async function createVariants(session, productId, parsedVariant) {
           
           return {
             price: combo.price,
+            compareAtPrice: combo.compareAtPrice || null,
             optionValues: optionValues,
             inventoryQuantities: hasStock ? [
               {
