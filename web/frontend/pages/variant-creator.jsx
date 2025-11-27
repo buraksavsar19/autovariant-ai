@@ -18,6 +18,7 @@ import {
 import { TitleBar } from "@shopify/app-bridge-react";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { useQuery } from "react-query";
+import { texts, formatText } from "../utils/texts";
 
 // LocalStorage helper fonksiyonları
 const VARIANT_HISTORY_KEY = "variant_creation_history";
@@ -270,26 +271,11 @@ export default function VariantCreator() {
 
   // Prompt örnekleri
   const promptExamples = [
-    {
-      title: "Basit Beden ve Renk",
-      text: "S'den 3XL'e kadar tüm bedenler, kırmızı yeşil mavi renkler, fiyat 500 lira"
-    },
-    {
-      title: "Fiyat Kuralları ile",
-      text: "S'den 3XL'e kadar tüm bedenler, kırmızı yeşil mavi sarı mor renkler, temel fiyat 400 lira, 2XL ve sonrası için fiyat +100 lira"
-    },
-    {
-      title: "Stok Kuralları ile",
-      text: "S'den 3XL'e kadar tüm bedenler, kırmızı yeşil mavi renkler, fiyat 500 lira, her varyant için 10 adet stok, 2XL için 5 adet stok"
-    },
-    {
-      title: "Sadece Belirli Bedenler",
-      text: "M, L, XL bedenler, siyah beyaz kırmızı renkler, fiyat 600 lira"
-    },
-    {
-      title: "Geniş Renk Paleti",
-      text: "S'den 2XL'e kadar tüm bedenler, kırmızı yeşil mavi sarı mor turuncu pembe siyah beyaz renkler, fiyat 450 lira"
-    }
+    { title: texts.examples.simpleTitle, text: texts.examples.simpleText },
+    { title: texts.examples.priceRulesTitle, text: texts.examples.priceRulesText },
+    { title: texts.examples.stockRulesTitle, text: texts.examples.stockRulesText },
+    { title: texts.examples.specificSizesTitle, text: texts.examples.specificSizesText },
+    { title: texts.examples.wideColorsTitle, text: texts.examples.wideColorsText }
   ];
 
   // Aktif shop domain'ini URL query parametrelerinden oku (örn: ?shop=autovariantai.myshopify.com)
@@ -361,10 +347,10 @@ export default function VariantCreator() {
   }, [variantsLocked, currentStep]);
 
   const stepItems = [
-    { id: 0, label: "Ürün Seç" },
-    { id: 1, label: "Önizleme" },
-    { id: 2, label: "Görseller" },
-    { id: 3, label: "Bitir" },
+    { id: 0, label: texts.steps.selectProduct },
+    { id: 1, label: texts.steps.preview },
+    { id: 2, label: texts.steps.images },
+    { id: 3, label: texts.steps.finish },
   ];
 
   const getStepStatus = (stepId) => {
@@ -377,13 +363,13 @@ export default function VariantCreator() {
   const getStepHelpText = (stepId) => {
     switch (stepId) {
       case 0:
-        return "Bir ürün seçin ve varyant kurallarınızı doğal dil ile yazın. Örnek: 'S'den 3XL'e kadar tüm bedenler, kırmızı yeşil mavi renkler, temel fiyat 200 lira'";
+        return texts.stepHelp.step0;
       case 1:
-        return "Oluşturulacak varyantları önizleyin. Gerekirse düzenleyin ve 'Varyantları Oluştur' butonuna tıklayın.";
+        return texts.stepHelp.step1;
       case 2:
-        return "Ürün fotoğraflarını yükleyin ve renklere otomatik eşleştirin. Her renk için uygun fotoğrafları seçin.";
+        return texts.stepHelp.step2;
       case 3:
-        return "Tüm işlemler tamamlandı! Ürününüze gidip sonuçları kontrol edebilirsiniz.";
+        return texts.stepHelp.step3;
       default:
         return "";
     }
@@ -432,7 +418,7 @@ export default function VariantCreator() {
     const promptToUse = customPrompt !== null ? customPrompt : prompt;
     
     if (!promptToUse || !promptToUse.trim()) {
-      setError("Lütfen bir prompt girin");
+      setError(texts.errors.emptyPrompt);
       return;
     }
 
@@ -1583,7 +1569,7 @@ export default function VariantCreator() {
           box-shadow: 0 4px 16px rgba(0,0,0,0.1);
         }
       `}</style>
-      <TitleBar title="Otomatik Varyant Oluşturucu" />
+      <TitleBar title={texts.app.title} />
       <Layout>
         <Layout.Section>
           <Card sectioned>
@@ -1885,7 +1871,7 @@ export default function VariantCreator() {
                 <Banner 
                   status="success" 
                   onDismiss={() => setSuccess(null)}
-                  title="🎉 Başarılı!"
+                  title={texts.success.title}
                 >
                   <Stack vertical spacing="tight">
                     <Text as="p" variant="bodyMd">
@@ -2169,7 +2155,7 @@ export default function VariantCreator() {
                     ))}
                   </div>
                   <Text as="p" variant="bodySm" color="subdued" style={{ marginTop: "12px", textAlign: "center" }}>
-                    Ürünler yükleniyor...
+                    {texts.info.productsLoading}
                   </Text>
                 </div>
               )}
