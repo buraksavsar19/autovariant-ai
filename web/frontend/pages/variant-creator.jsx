@@ -257,6 +257,11 @@ export default function VariantCreator() {
   const [showPromptExamples, setShowPromptExamples] = useState(false); // Prompt örnekleri modal'ı
   const [showHistory, setShowHistory] = useState(false); // Geçmiş kayıtları göster/gizle
   const [showTemplates, setShowTemplates] = useState(true); // Template'leri göster/gizle (varsayılan açık)
+  const [isFirstTimeUser, setIsFirstTimeUser] = useState(false); // İlk kullanım mı?
+  const [showOnboarding, setShowOnboarding] = useState(false); // Onboarding göster/gizle
+
+  // İlk kullanım kontrolü
+  const ONBOARDING_KEY = "autovariant_onboarding_completed";
 
   // Prompt örnekleri
   const promptExamples = [
@@ -304,6 +309,30 @@ export default function VariantCreator() {
       console.error("History/Template yükleme hatası:", error);
     }
   }, []);
+
+  // İlk kullanım kontrolü
+  useEffect(() => {
+    try {
+      const onboardingCompleted = localStorage.getItem(ONBOARDING_KEY);
+      if (!onboardingCompleted) {
+        setIsFirstTimeUser(true);
+        setShowOnboarding(true);
+      }
+    } catch (error) {
+      console.error("Onboarding kontrolü hatası:", error);
+    }
+  }, []);
+
+  // Onboarding'i tamamla
+  const completeOnboarding = () => {
+    try {
+      localStorage.setItem(ONBOARDING_KEY, "true");
+      setIsFirstTimeUser(false);
+      setShowOnboarding(false);
+    } catch (error) {
+      console.error("Onboarding kaydetme hatası:", error);
+    }
+  };
 
   // Akış adımı: 0 = Ürün & Prompt, 1 = Önizleme, 2 = Görsel Eşleme, 3 = Tamamlandı
   const currentStep = useMemo(() => {
@@ -1512,9 +1541,11 @@ export default function VariantCreator() {
                   status="critical" 
                   onDismiss={() => setError(null)}
                   title={
-                    error.includes("Bağlantı hatası") ? "🌐 Bağlantı Sorunu" :
-                    error.includes("rate limit") ? "⏱️ İşlem Limiti" :
-                    error.includes("API") ? "⚙️ Servis Hatası" :
+                    error.includes("Bağlantı hatası") || error.includes("fetch") ? "🌐 Bağlantı Sorunu" :
+                    error.includes("rate limit") || error.includes("429") ? "⏱️ İşlem Limiti" :
+                    error.includes("API") || error.includes("OpenAI") ? "⚙️ Servis Hatası" :
+                    error.includes("Ürün") || error.includes("ürün") ? "📦 Ürün Hatası" :
+                    error.includes("Prompt") || error.includes("prompt") ? "✏️ Prompt Hatası" :
                     "⚠️ Bir Sorun Oluştu"
                   }
                 >
@@ -1524,35 +1555,106 @@ export default function VariantCreator() {
                     </Text>
                     
                     {/* Bağlantı hatası için yardım */}
-                    {error.includes("Bağlantı hatası") && (
-                      <Stack vertical spacing="extraTight">
-                        <Text as="p" variant="bodySm" color="subdued">
-                          💡 Şunları kontrol edin:
-                        </Text>
-                        <Text as="p" variant="bodySm" color="subdued">
-                          • İnternet bağlantınız aktif mi?
-                        </Text>
-                        <Text as="p" variant="bodySm" color="subdued">
-                          • Sayfayı yenileyip tekrar deneyin
-                        </Text>
-                      </Stack>
+                    {(error.includes("Bağlantı hatası") || error.includes("fetch") || error.includes("network")) && (
+                      <div style={{ 
+                        background: "#fff8e6", 
+                        padding: "12px", 
+                        borderRadius: "8px",
+                        marginTop: "8px"
+                      }}>
+                        <Stack vertical spacing="extraTight">
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            💡 Çözüm Önerileri:
+                          </Text>
+                          <Text as="p" variant="bodySm" color="subdued">
+                            • İnternet bağlantınızı kontrol edin
+                          </Text>
+                          <Text as="p" variant="bodySm" color="subdued">
+                            • Sayfayı yenileyip tekrar deneyin
+                          </Text>
+                          <Text as="p" variant="bodySm" color="subdued">
+                            • Sorun devam ederse 5 dakika bekleyin
+                          </Text>
+                        </Stack>
+                      </div>
                     )}
                     
                     {/* Rate limit için yardım */}
-                    {error.includes("rate limit") && (
-                      <Text as="p" variant="bodySm" color="subdued">
-                        💡 Birkaç saniye bekleyip tekrar deneyin. Çok fazla istek gönderildi.
-                      </Text>
+                    {(error.includes("rate limit") || error.includes("429") || error.includes("çok fazla")) && (
+                      <div style={{ 
+                        background: "#fff8e6", 
+                        padding: "12px", 
+                        borderRadius: "8px",
+                        marginTop: "8px"
+                      }}>
+                        <Text as="p" variant="bodySm">
+                          💡 <strong>Çözüm:</strong> 30 saniye bekleyip "Tekrar Dene" butonuna tıklayın. Çok fazla istek gönderildiğinde bu hata oluşabilir.
+                        </Text>
+                      </div>
+                    )}
+
+                    {/* API / OpenAI hatası için yardım */}
+                    {(error.includes("API") || error.includes("OpenAI") || error.includes("servis")) && (
+                      <div style={{ 
+                        background: "#fff8e6", 
+                        padding: "12px", 
+                        borderRadius: "8px",
+                        marginTop: "8px"
+                      }}>
+                        <Stack vertical spacing="extraTight">
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            💡 Bu geçici bir sorun olabilir:
+                          </Text>
+                          <Text as="p" variant="bodySm" color="subdued">
+                            • AI servisi şu anda yoğun olabilir
+                          </Text>
+                          <Text as="p" variant="bodySm" color="subdued">
+                            • Birkaç dakika bekleyip tekrar deneyin
+                          </Text>
+                        </Stack>
+                      </div>
                     )}
                     
                     {/* Prompt hatası için yardım */}
-                    {error.includes("Prompt") && (
-                      <Text as="p" variant="bodySm" color="subdued">
-                        💡 Örnek: "S'den XL'e kadar, kırmızı mavi yeşil, 100 TL"
-                      </Text>
+                    {(error.includes("Prompt") || error.includes("prompt") || error.includes("anlam")) && (
+                      <div style={{ 
+                        background: "#e6f4ea", 
+                        padding: "12px", 
+                        borderRadius: "8px",
+                        marginTop: "8px"
+                      }}>
+                        <Stack vertical spacing="extraTight">
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            💡 Doğru Prompt Yazımı:
+                          </Text>
+                          <Text as="p" variant="bodySm" color="subdued">
+                            • Bedenler: "S'den XL'e kadar" veya "M, L, XL"
+                          </Text>
+                          <Text as="p" variant="bodySm" color="subdued">
+                            • Renkler: "kırmızı mavi yeşil" veya "kırmızı, beyaz, siyah"
+                          </Text>
+                          <Text as="p" variant="bodySm" color="subdued">
+                            • Fiyat: "fiyat 200 lira" veya "temel fiyat 500 TL"
+                          </Text>
+                        </Stack>
+                      </div>
+                    )}
+
+                    {/* Ürün hatası için yardım */}
+                    {(error.includes("Ürün") || error.includes("ürün")) && (
+                      <div style={{ 
+                        background: "#fff8e6", 
+                        padding: "12px", 
+                        borderRadius: "8px",
+                        marginTop: "8px"
+                      }}>
+                        <Text as="p" variant="bodySm">
+                          💡 <strong>Çözüm:</strong> Lütfen yukarıdan bir ürün seçtiğinizden emin olun. Ürün listesi boşsa, önce Shopify'a ürün eklemeniz gerekir.
+                        </Text>
+                      </div>
                     )}
                     
-                    {/* Genel tekrar dene butonu */}
+                    {/* Aksiyon butonları */}
                     <Stack spacing="tight">
                       <Button 
                         size="slim" 
@@ -1560,7 +1662,15 @@ export default function VariantCreator() {
                       >
                         Kapat
                       </Button>
-                      {(error.includes("Bağlantı") || error.includes("rate limit")) && (
+                      {/* Retry için uygun hatalar */}
+                      {(error.includes("Bağlantı") || 
+                        error.includes("rate limit") || 
+                        error.includes("429") ||
+                        error.includes("fetch") ||
+                        error.includes("API") ||
+                        error.includes("OpenAI") ||
+                        error.includes("network") ||
+                        error.includes("timeout")) && (
                         <Button 
                           size="slim" 
                           primary
@@ -1570,6 +1680,32 @@ export default function VariantCreator() {
                           }}
                         >
                           🔄 Tekrar Dene
+                        </Button>
+                      )}
+                      {/* Ürün listesini yenile */}
+                      {(error.includes("Ürün") || error.includes("ürün")) && (
+                        <Button 
+                          size="slim" 
+                          primary
+                          onClick={() => {
+                            setError(null);
+                            refetchProducts();
+                          }}
+                        >
+                          🔄 Ürünleri Yenile
+                        </Button>
+                      )}
+                      {/* Örnek prompt göster */}
+                      {(error.includes("Prompt") || error.includes("prompt")) && (
+                        <Button 
+                          size="slim" 
+                          primary
+                          onClick={() => {
+                            setError(null);
+                            setShowPromptExamples(true);
+                          }}
+                        >
+                          📝 Örnekleri Gör
                         </Button>
                       )}
                     </Stack>
@@ -1624,12 +1760,51 @@ export default function VariantCreator() {
               {!isLoadingProducts &&
                 productsData?.products &&
                 productsData.products.length === 0 && (
-                  <Banner status="info">
-                    <Text as="p" variant="bodyMd">
-                      Lütfen önce mağazanıza ürün ekleyin. Shopify admin
-                      panelinden "Ürünler" menüsüne gidip yeni ürün ekleyebilirsiniz.
-                    </Text>
-                  </Banner>
+                  <Card sectioned>
+                    <div style={{ 
+                      textAlign: "center", 
+                      padding: "40px 20px",
+                      background: "linear-gradient(135deg, #f6f8fa 0%, #eef1f5 100%)",
+                      borderRadius: "12px"
+                    }}>
+                      <div style={{ fontSize: "48px", marginBottom: "16px" }}>📦</div>
+                      <Text as="h2" variant="headingLg">
+                        Henüz ürün bulunamadı
+                      </Text>
+                      <div style={{ marginTop: "12px", marginBottom: "20px" }}>
+                        <Text as="p" variant="bodyMd" color="subdued">
+                          Varyant oluşturmak için önce mağazanıza en az bir ürün eklemeniz gerekmektedir.
+                        </Text>
+                      </div>
+                      <div style={{ 
+                        background: "#fff", 
+                        padding: "16px", 
+                        borderRadius: "8px", 
+                        marginBottom: "20px",
+                        border: "1px solid #e1e3e5"
+                      }}>
+                        <Text as="p" variant="bodySm" color="subdued">
+                          <strong>Nasıl yapılır?</strong><br />
+                          Shopify Admin → Ürünler → Ürün Ekle
+                        </Text>
+                      </div>
+                      <Button
+                        primary
+                        url="https://admin.shopify.com/store/products/new"
+                        external
+                      >
+                        Shopify'da Ürün Ekle
+                      </Button>
+                      <div style={{ marginTop: "12px" }}>
+                        <Button
+                          plain
+                          onClick={() => refetchProducts()}
+                        >
+                          🔄 Ürünleri yenile
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
                 )}
 
               {/* Çoklu seçim modu toggle */}
@@ -2996,6 +3171,106 @@ export default function VariantCreator() {
           </Card>
         </div>
       )}
+
+      {/* İlk Kullanım / Onboarding Modal */}
+      <Modal
+        open={showOnboarding}
+        onClose={completeOnboarding}
+        title="👋 Autovariant AI'a Hoş Geldiniz!"
+        primaryAction={{
+          content: "Başlayalım! 🚀",
+          onAction: completeOnboarding,
+        }}
+      >
+        <Modal.Section>
+          <Stack vertical spacing="loose">
+            <div style={{ textAlign: "center", padding: "16px 0" }}>
+              <div style={{ fontSize: "64px", marginBottom: "16px" }}>✨</div>
+              <Text as="h2" variant="headingLg">
+                Varyant oluşturmak hiç bu kadar kolay olmamıştı!
+              </Text>
+            </div>
+
+            <div style={{ 
+              background: "#f6f8fa", 
+              padding: "20px", 
+              borderRadius: "12px",
+              border: "1px solid #e1e3e5"
+            }}>
+              <Stack vertical spacing="base">
+                <Stack spacing="tight" alignment="center">
+                  <div style={{ 
+                    background: "#008060", 
+                    color: "white", 
+                    borderRadius: "50%", 
+                    width: "28px", 
+                    height: "28px", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontWeight: "bold",
+                    fontSize: "14px"
+                  }}>1</div>
+                  <Text as="p" variant="bodyMd" fontWeight="semibold">
+                    Ürün Seçin
+                  </Text>
+                </Stack>
+                <Text as="p" variant="bodySm" color="subdued" style={{ marginLeft: "36px" }}>
+                  Mağazanızdaki ürünlerden varyant eklemek istediğinizi seçin
+                </Text>
+
+                <Stack spacing="tight" alignment="center">
+                  <div style={{ 
+                    background: "#008060", 
+                    color: "white", 
+                    borderRadius: "50%", 
+                    width: "28px", 
+                    height: "28px", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontWeight: "bold",
+                    fontSize: "14px"
+                  }}>2</div>
+                  <Text as="p" variant="bodyMd" fontWeight="semibold">
+                    Doğal Dille Yazın
+                  </Text>
+                </Stack>
+                <Text as="p" variant="bodySm" color="subdued" style={{ marginLeft: "36px" }}>
+                  "S'den XL'e kadar, kırmızı mavi beyaz, 200 lira" gibi yazın
+                </Text>
+
+                <Stack spacing="tight" alignment="center">
+                  <div style={{ 
+                    background: "#008060", 
+                    color: "white", 
+                    borderRadius: "50%", 
+                    width: "28px", 
+                    height: "28px", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontWeight: "bold",
+                    fontSize: "14px"
+                  }}>3</div>
+                  <Text as="p" variant="bodyMd" fontWeight="semibold">
+                    AI Oluştursun
+                  </Text>
+                </Stack>
+                <Text as="p" variant="bodySm" color="subdued" style={{ marginLeft: "36px" }}>
+                  AI tüm varyantları otomatik oluşturur, siz sadece onaylayın
+                </Text>
+              </Stack>
+            </div>
+
+            <Banner status="info">
+              <Text as="p" variant="bodySm">
+                💡 <strong>İpucu:</strong> "Örnekler" butonuna tıklayarak hazır prompt şablonlarını görebilirsiniz.
+              </Text>
+            </Banner>
+          </Stack>
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 }
