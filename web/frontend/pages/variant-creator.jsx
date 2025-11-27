@@ -259,6 +259,9 @@ export default function VariantCreator() {
   const [showTemplates, setShowTemplates] = useState(true); // Template'leri göster/gizle (varsayılan açık)
   const [isFirstTimeUser, setIsFirstTimeUser] = useState(false); // İlk kullanım mı?
   const [showOnboarding, setShowOnboarding] = useState(false); // Onboarding göster/gizle
+  const [lastEditedValue, setLastEditedValue] = useState(null); // Son düzenlenen değer { type: 'price'|'stock', value: number, variantId: string }
+  const [showApplyAllBanner, setShowApplyAllBanner] = useState(false); // Tümüne uygula banner'ı
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 }); // Yükleme ilerleme durumu
 
   // İlk kullanım kontrolü
   const ONBOARDING_KEY = "autovariant_onboarding_completed";
@@ -558,24 +561,52 @@ export default function VariantCreator() {
   // Varyant düzenleme fonksiyonları
   const updateVariantPrice = (variantId, newPrice) => {
     if (variantsLocked) return;
+    const priceValue = parseFloat(newPrice) || 0;
     setEditableVariants(prev => 
       prev.map(v => 
         v.id === variantId 
-          ? { ...v, price: parseFloat(newPrice) || 0 }
+          ? { ...v, price: priceValue }
           : v
       )
     );
+    // Son düzenlenen değeri kaydet ve banner'ı göster
+    setLastEditedValue({ type: 'price', value: priceValue, variantId });
+    setShowApplyAllBanner(true);
   };
 
   const updateVariantStock = (variantId, newStock) => {
     if (variantsLocked) return;
+    const stockValue = parseInt(newStock) || 0;
     setEditableVariants(prev => 
       prev.map(v => 
         v.id === variantId 
-          ? { ...v, stock: parseInt(newStock) || 0 }
+          ? { ...v, stock: stockValue }
           : v
       )
     );
+    // Son düzenlenen değeri kaydet ve banner'ı göster
+    setLastEditedValue({ type: 'stock', value: stockValue, variantId });
+    setShowApplyAllBanner(true);
+  };
+
+  // Tüm varyantlara değer uygula
+  const applyValueToAll = () => {
+    if (!lastEditedValue || variantsLocked) return;
+    
+    setEditableVariants(prev => 
+      prev.map(v => ({
+        ...v,
+        [lastEditedValue.type]: lastEditedValue.value
+      }))
+    );
+    setShowApplyAllBanner(false);
+    setLastEditedValue(null);
+  };
+
+  // Banner'ı kapat
+  const dismissApplyAllBanner = () => {
+    setShowApplyAllBanner(false);
+    setLastEditedValue(null);
   };
 
   const deleteVariant = (variantId) => {
@@ -949,6 +980,7 @@ export default function VariantCreator() {
 
     setIsUploadingToShopify(true);
     setUploadingProductId(productIdToUse);
+    setUploadProgress({ current: 0, total: imagesToUpload.length });
     setError(null);
     shopify.loading(true);
 
@@ -2709,6 +2741,50 @@ export default function VariantCreator() {
                       </Text>
                     )}
                   </Stack>
+
+                  {/* Tümüne Uygula Banner'ı */}
+                  {showApplyAllBanner && lastEditedValue && !variantsLocked && (
+                    <div style={{
+                      background: "linear-gradient(135deg, #e6f4ff 0%, #f0f7ff 100%)",
+                      border: "1px solid #b3d9ff",
+                      borderRadius: "8px",
+                      padding: "12px 16px",
+                      marginTop: "12px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      flexWrap: "wrap",
+                      gap: "12px"
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ fontSize: "20px" }}>💡</span>
+                        <Text as="span" variant="bodyMd">
+                          <strong>{lastEditedValue.type === 'price' ? 'Fiyat' : 'Stok'}</strong> değerini{' '}
+                          <strong>
+                            {lastEditedValue.type === 'price' 
+                              ? `₺${lastEditedValue.value}` 
+                              : `${lastEditedValue.value} adet`}
+                          </strong>{' '}
+                          olarak değiştirdiniz. Tüm varyantlara uygulamak ister misiniz?
+                        </Text>
+                      </div>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <Button
+                          primary
+                          onClick={applyValueToAll}
+                        >
+                          ✓ Tümüne Uygula ({editableVariants.length} varyant)
+                        </Button>
+                        <Button
+                          plain
+                          onClick={dismissApplyAllBanner}
+                        >
+                          Hayır
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   {editableVariants.length > 0 && (
                     <>
                       {/* Desktop Table View */}
@@ -2924,14 +3000,14 @@ export default function VariantCreator() {
                             left: 0,
                             right: 0,
                             bottom: 0,
-                            background: "rgba(255, 255, 255, 0.95)",
+                            background: "rgba(255, 255, 255, 0.97)",
                             display: "flex",
                             flexDirection: "column",
                             alignItems: "center",
                             justifyContent: "center",
                             zIndex: 100,
                             borderRadius: "12px",
-                            gap: "20px",
+                            gap: "16px",
                             padding: "40px"
                           }}>
                             <div style={{
@@ -2950,23 +3026,104 @@ export default function VariantCreator() {
                             <Text as="h3" variant="headingLg">
                               Shopify'a Yükleniyor...
                             </Text>
-                            <div style={{
-                              width: "200px",
-                              height: "8px",
-                              background: "#e1e3e5",
-                              borderRadius: "4px",
-                              overflow: "hidden"
-                            }}>
+                            
+                            {/* Yükleme Bilgisi */}
+                            {uploadProgress.total > 0 && (
+                              <div style={{
+                                background: "#f0fdf4",
+                                border: "1px solid #bbf7d0",
+                                borderRadius: "8px",
+                                padding: "12px 20px",
+                                textAlign: "center"
+                              }}>
+                                <Text as="p" variant="headingMd" fontWeight="bold">
+                                  📷 {uploadProgress.total} fotoğraf
+                                </Text>
+                                <Text as="p" variant="bodySm" color="subdued">
+                                  varyantlara atanıyor
+                                </Text>
+                              </div>
+                            )}
+
+                            {/* Animated Progress Bar */}
+                            <div style={{ width: "100%", maxWidth: "280px" }}>
                               <div style={{
                                 width: "100%",
-                                height: "100%",
-                                background: "linear-gradient(90deg, #008060 0%, #00a870 50%, #008060 100%)",
-                                backgroundSize: "200% 100%",
-                                animation: "uploadProgress 1.5s ease-in-out infinite"
-                              }} />
+                                height: "10px",
+                                background: "#e1e3e5",
+                                borderRadius: "5px",
+                                overflow: "hidden"
+                              }}>
+                                <div style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  background: "linear-gradient(90deg, #008060 0%, #00d4aa 50%, #008060 100%)",
+                                  backgroundSize: "200% 100%",
+                                  animation: "uploadProgress 1.2s ease-in-out infinite",
+                                  borderRadius: "5px"
+                                }} />
+                              </div>
                             </div>
-                            <Text as="p" variant="bodySm" color="subdued">
-                              Fotoğraflar varyantlara atanıyor. Lütfen bekleyin...
+
+                            {/* İşlem Adımları */}
+                            <div style={{ 
+                              display: "flex", 
+                              flexDirection: "column", 
+                              gap: "8px",
+                              marginTop: "8px"
+                            }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                <div style={{
+                                  width: "20px",
+                                  height: "20px",
+                                  borderRadius: "50%",
+                                  background: "#008060",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  color: "white",
+                                  fontSize: "12px"
+                                }}>✓</div>
+                                <Text as="span" variant="bodySm" color="subdued">
+                                  Fotoğraflar hazırlandı
+                                </Text>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                <div style={{
+                                  width: "20px",
+                                  height: "20px",
+                                  borderRadius: "50%",
+                                  background: "linear-gradient(135deg, #008060, #00d4aa)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center"
+                                }}>
+                                  <Spinner size="small" />
+                                </div>
+                                <Text as="span" variant="bodySm">
+                                  Shopify'a yükleniyor...
+                                </Text>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: "8px", opacity: 0.5 }}>
+                                <div style={{
+                                  width: "20px",
+                                  height: "20px",
+                                  borderRadius: "50%",
+                                  background: "#e1e3e5",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  color: "#8c9196",
+                                  fontSize: "10px"
+                                }}>3</div>
+                                <Text as="span" variant="bodySm" color="subdued">
+                                  Varyantlara atanacak
+                                </Text>
+                              </div>
+                            </div>
+
+                            <Text as="p" variant="bodySm" color="subdued" style={{ marginTop: "8px" }}>
+                              Bu işlem fotoğraf sayısına bağlı olarak biraz zaman alabilir
                             </Text>
                             <style>{`
                               @keyframes uploadPulse {
