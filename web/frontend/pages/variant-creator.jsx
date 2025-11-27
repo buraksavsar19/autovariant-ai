@@ -20,6 +20,21 @@ import { useAppBridge } from "@shopify/app-bridge-react";
 import { useQuery } from "react-query";
 import { texts, formatText } from "../utils/texts";
 
+// Shopify Limitleri ve Sabitler
+const SHOPIFY_LIMITS = {
+  MAX_VARIANTS_PER_PRODUCT: 100, // Shopify hard limit
+  MAX_OPTIONS_PER_PRODUCT: 3,    // Shopify hard limit
+  MAX_OPTION_VALUES: 200,        // Per option
+  MAX_STOCK_VALUE: 999999,       // Mantıklı üst limit
+  MAX_PRICE_VALUE: 9999999,      // Mantıklı üst limit
+};
+
+// API Rate Limiting
+const API_RATE_LIMIT = {
+  MIN_INTERVAL_MS: 500,          // İstekler arası minimum süre (ms)
+  lastRequestTime: 0,            // Son istek zamanı
+};
+
 // LocalStorage helper fonksiyonları
 const VARIANT_HISTORY_KEY = "variant_creation_history";
 const MAX_HISTORY_ITEMS = 10; // En fazla 10 kayıt tut
@@ -242,6 +257,8 @@ export default function VariantCreator() {
   const [templates, setTemplates] = useState([]); // Template'ler
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false); // Template kaydetme modal'ı
   const [templateName, setTemplateName] = useState(""); // Template ismi
+  const [showExistingVariantWarning, setShowExistingVariantWarning] = useState(false); // Mevcut varyant uyarı modal'ı
+  const [existingVariantInfo, setExistingVariantInfo] = useState(null); // Mevcut varyant bilgisi
   const [uploadedImages, setUploadedImages] = useState([]); // Yüklenen görseller: [{ id, file, preview, colorMatch: null }]
   const [isAnalyzingColors, setIsAnalyzingColors] = useState(false); // Renk analizi yapılıyor mu
   const [imageColorMatches, setImageColorMatches] = useState({}); // { imageId: colorName }
@@ -628,6 +645,27 @@ export default function VariantCreator() {
         }
         return getOrderIndex(sizeOrder, a.size) - getOrderIndex(sizeOrder, b.size);
       });
+
+      // 🔴 100 VARYANT LİMİT KONTROLÜ (Shopify Hard Limit)
+      if (variants.length > SHOPIFY_LIMITS.MAX_VARIANTS_PER_PRODUCT) {
+        setError(
+          `⚠️ Shopify Limiti Aşıldı!\n\n` +
+          `Oluşturmak istediğiniz varyant sayısı: ${variants.length}\n` +
+          `Shopify maksimum limiti: ${SHOPIFY_LIMITS.MAX_VARIANTS_PER_PRODUCT}\n\n` +
+          `Lütfen beden veya renk sayısını azaltın.\n` +
+          `Örnek: ${data.parsed.sizes.length} beden × ${data.parsed.colors.length} renk = ${variants.length} varyant`
+        );
+        setIsLoadingPreview(false);
+        return;
+      }
+
+      // ⚠️ 80+ varyant uyarısı (limite yaklaşıyor)
+      if (variants.length > 80) {
+        shopify.toast.show(
+          `Dikkat: ${variants.length} varyant oluşturulacak. Shopify limiti 100'dür.`,
+          { duration: 5000, isError: false }
+        );
+      }
 
       setEditableVariants(variants);
 
@@ -1499,6 +1537,94 @@ export default function VariantCreator() {
 
     if (!editableVariants || editableVariants.length === 0) {
       setError("Lütfen önce önizleme oluşturun ve en az bir varyant olduğundan emin olun");
+      return;
+    }
+
+    // 🔴 100 VARYANT LİMİT KONTROLÜ (Son kontrol)
+    if (editableVariants.length > SHOPIFY_LIMITS.MAX_VARIANTS_PER_PRODUCT) {
+      setError(
+        `⚠️ Shopify Limiti Aşıldı!\n\n` +
+        `Oluşturmak istediğiniz varyant sayısı: ${editableVariants.length}\n` +
+        `Shopify maksimum limiti: ${SHOPIFY_LIMITS.MAX_VARIANTS_PER_PRODUCT}\n\n` +
+        `Lütfen bazı varyantları önizlemeden silin.`
+      );
+      return;
+    }
+
+    // 🔴 DUPLICATE VARYANT KONTROLÜ
+    const variantKeys = new Set();
+    const duplicates = [];
+    for (const variant of editableVariants) {
+      const key = `${variant.size}-${variant.color}`.toLowerCase();
+      if (variantKeys.has(key)) {
+        duplicates.push(`${variant.size} / ${variant.color}`);
+      }
+      variantKeys.add(key);
+    }
+    if (duplicates.length > 0) {
+      setError(
+        `⚠️ Aynı varyant kombinasyonu birden fazla kez var!\n\n` +
+        `Tekrarlanan: ${duplicates.join(", ")}\n\n` +
+        `Lütfen tekrarlanan varyantları silin.`
+      );
+      return;
+    }
+
+    // 🔴 FİYAT VE STOK DEĞER KONTROLÜ
+    const invalidVariants = editableVariants.filter(v => {
+      const price = parseFloat(v.price);
+      const stock = parseInt(v.stock);
+      return price < 0 || price > SHOPIFY_LIMITS.MAX_PRICE_VALUE || 
+             stock < 0 || stock > SHOPIFY_LIMITS.MAX_STOCK_VALUE;
+    });
+    if (invalidVariants.length > 0) {
+      setError(
+        `⚠️ Geçersiz fiyat veya stok değeri!\n\n` +
+        `Fiyat: 0 - ${SHOPIFY_LIMITS.MAX_PRICE_VALUE.toLocaleString()} arasında olmalı\n` +
+        `Stok: 0 - ${SHOPIFY_LIMITS.MAX_STOCK_VALUE.toLocaleString()} arasında olmalı`
+      );
+      return;
+    }
+
+    // 🔴 API RATE LIMITING
+    const now = Date.now();
+    const timeSinceLastRequest = now - API_RATE_LIMIT.lastRequestTime;
+    if (timeSinceLastRequest < API_RATE_LIMIT.MIN_INTERVAL_MS) {
+      const waitTime = Math.ceil((API_RATE_LIMIT.MIN_INTERVAL_MS - timeSinceLastRequest) / 1000);
+      setError(`⏱️ Çok hızlı! Lütfen ${waitTime} saniye bekleyin.`);
+      return;
+    }
+    API_RATE_LIMIT.lastRequestTime = now;
+
+    // 🔴 MEVCUT VARYANT UYARISI (Üzerine yazılacak mı?)
+    const productsWithExistingVariants = productIdsToProcess
+      .map(id => productsData?.products?.find(p => p.id === id))
+      .filter(p => p && p.hasExistingVariants);
+    
+    if (productsWithExistingVariants.length > 0 && !showExistingVariantWarning) {
+      // Toplam limit kontrolü
+      const productsOverLimit = productsWithExistingVariants.filter(p => {
+        const totalAfter = (p.variantsCount || 0) + editableVariants.length;
+        return totalAfter > SHOPIFY_LIMITS.MAX_VARIANTS_PER_PRODUCT;
+      });
+
+      if (productsOverLimit.length > 0) {
+        setError(
+          `⚠️ Bazı ürünlerde 100 varyant limiti aşılacak!\n\n` +
+          productsOverLimit.map(p => 
+            `• ${p.title}: Mevcut ${p.variantsCount} + Yeni ${editableVariants.length} = ${p.variantsCount + editableVariants.length} (Limit: 100)`
+          ).join('\n') +
+          `\n\nLütfen bu ürünlerdeki mevcut varyantları silin veya daha az varyant oluşturun.`
+        );
+        return;
+      }
+
+      // Mevcut varyant uyarısı göster
+      setExistingVariantInfo({
+        products: productsWithExistingVariants,
+        newVariantCount: editableVariants.length,
+      });
+      setShowExistingVariantWarning(true);
       return;
     }
 
@@ -4158,6 +4284,83 @@ export default function VariantCreator() {
                 </Stack>
               </div>
             )}
+          </Stack>
+        </Modal.Section>
+      </Modal>
+
+      {/* Mevcut Varyant Uyarı Modal'ı */}
+      <Modal
+        open={showExistingVariantWarning}
+        onClose={() => {
+          setShowExistingVariantWarning(false);
+          setExistingVariantInfo(null);
+        }}
+        title="⚠️ Mevcut Varyant Uyarısı"
+        primaryAction={{
+          content: "Devam Et",
+          onAction: () => {
+            setShowExistingVariantWarning(false);
+            // handleCreate'i tekrar çağır, bu sefer uyarı gösterilmeyecek
+            setTimeout(() => handleCreate(), 100);
+          },
+        }}
+        secondaryActions={[
+          {
+            content: "İptal",
+            onAction: () => {
+              setShowExistingVariantWarning(false);
+              setExistingVariantInfo(null);
+            },
+          },
+        ]}
+      >
+        <Modal.Section>
+          <Stack vertical spacing="base">
+            <Banner status="warning">
+              <Text as="p" variant="bodyMd">
+                Seçtiğiniz ürün(ler)de zaten varyant mevcut. Yeni varyantlar mevcut olanlara eklenecektir.
+              </Text>
+            </Banner>
+            
+            {existingVariantInfo && existingVariantInfo.products && (
+              <div style={{ 
+                background: "#fff8e6", 
+                padding: "12px 16px", 
+                borderRadius: "8px", 
+                border: "1px solid #ffc453" 
+              }}>
+                <Stack vertical spacing="tight">
+                  <Text as="p" variant="bodyMd" fontWeight="semibold">
+                    Etkilenen ürünler:
+                  </Text>
+                  {existingVariantInfo.products.map((product, idx) => (
+                    <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <Text as="span" variant="bodySm">
+                        • {product.title}
+                      </Text>
+                      <Badge status="attention">
+                        {product.variantsCount} mevcut varyant
+                      </Badge>
+                    </div>
+                  ))}
+                </Stack>
+              </div>
+            )}
+            
+            <div style={{ 
+              background: "#f6f8fa", 
+              padding: "12px 16px", 
+              borderRadius: "8px" 
+            }}>
+              <Stack vertical spacing="extraTight">
+                <Text as="p" variant="bodySm">
+                  <strong>Eklenecek yeni varyant:</strong> {existingVariantInfo?.newVariantCount || 0} adet
+                </Text>
+                <Text as="p" variant="bodySm" color="subdued">
+                  Not: Aynı beden/renk kombinasyonu varsa, mevcut varyantlar güncellenmeyecek, yenileri eklenecektir.
+                </Text>
+              </Stack>
+            </div>
           </Stack>
         </Modal.Section>
       </Modal>

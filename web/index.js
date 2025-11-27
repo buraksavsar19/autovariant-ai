@@ -171,6 +171,13 @@ app.get("/api/products/list", async (_req, res) => {
               id
               title
               handle
+              variantsCount {
+                count
+              }
+              options {
+                name
+                values
+              }
             }
           }
         }
@@ -182,6 +189,9 @@ app.get("/api/products/list", async (_req, res) => {
       id: edge.node.id,
       title: edge.node.title,
       handle: edge.node.handle,
+      variantsCount: edge.node.variantsCount?.count || 0,
+      options: edge.node.options || [],
+      hasExistingVariants: (edge.node.variantsCount?.count || 0) > 1, // 1'den fazla varyant varsa
     }));
 
     // Template ürünlerini çıkar, sadece gerçek ürünleri göster
