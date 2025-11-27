@@ -1533,6 +1533,56 @@ export default function VariantCreator() {
 
   return (
     <Page narrowWidth>
+      {/* Global Animation Styles */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeInScale {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.02); }
+        }
+        @keyframes successPop {
+          0% { transform: scale(0); opacity: 0; }
+          50% { transform: scale(1.2); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes checkmark {
+          0% { stroke-dashoffset: 50; }
+          100% { stroke-dashoffset: 0; }
+        }
+        @keyframes confetti {
+          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+        }
+        .fade-in {
+          animation: fadeIn 0.3s ease-out forwards;
+        }
+        .fade-in-scale {
+          animation: fadeInScale 0.25s ease-out forwards;
+        }
+        .btn-hover-effect {
+          transition: all 0.2s ease;
+        }
+        .btn-hover-effect:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .btn-hover-effect:active {
+          transform: translateY(0);
+        }
+        .card-hover {
+          transition: all 0.2s ease;
+        }
+        .card-hover:hover {
+          box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
+      `}</style>
       <TitleBar title="Otomatik Varyant Oluşturucu" />
       <Layout>
         <Layout.Section>
@@ -2085,10 +2135,43 @@ export default function VariantCreator() {
               )}
 
               {isLoadingProducts && (
-                <Stack>
-                  <Spinner size="small" />
-                  <Text as="span">Ürünler yükleniyor...</Text>
-                </Stack>
+                <div className="skeleton-container">
+                  <style>{`
+                    @keyframes shimmer {
+                      0% { background-position: -200px 0; }
+                      100% { background-position: calc(200px + 100%) 0; }
+                    }
+                    .skeleton-item {
+                      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+                      background-size: 200px 100%;
+                      animation: shimmer 1.5s ease-in-out infinite;
+                      border-radius: 8px;
+                    }
+                  `}</style>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} style={{ 
+                        display: "flex", 
+                        alignItems: "center", 
+                        gap: "12px",
+                        padding: "12px",
+                        background: "#fff",
+                        borderRadius: "8px",
+                        border: "1px solid #e1e3e5"
+                      }}>
+                        <div className="skeleton-item" style={{ width: "48px", height: "48px", borderRadius: "8px" }} />
+                        <div style={{ flex: 1 }}>
+                          <div className="skeleton-item" style={{ width: "60%", height: "16px", marginBottom: "8px" }} />
+                          <div className="skeleton-item" style={{ width: "40%", height: "12px" }} />
+                        </div>
+                        <div className="skeleton-item" style={{ width: "80px", height: "32px", borderRadius: "6px" }} />
+                      </div>
+                    ))}
+                  </div>
+                  <Text as="p" variant="bodySm" color="subdued" style={{ marginTop: "12px", textAlign: "center" }}>
+                    Ürünler yükleniyor...
+                  </Text>
+                </div>
               )}
 
               {/* Template'ler - Kompakt buton olarak */}
@@ -2132,6 +2215,7 @@ export default function VariantCreator() {
                         return (
                           <div 
                             key={template.id}
+                            className="template-card"
                             style={{
                               display: "flex",
                               alignItems: "center",
@@ -2141,7 +2225,17 @@ export default function VariantCreator() {
                               borderRadius: "6px",
                               border: "1px solid #e1e3e5",
                               gap: "8px",
-                              flexWrap: "wrap"
+                              flexWrap: "wrap",
+                              transition: "all 0.2s ease",
+                              cursor: "pointer"
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
+                              e.currentTarget.style.borderColor = "#c9cccf";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.boxShadow = "none";
+                              e.currentTarget.style.borderColor = "#e1e3e5";
                             }}
                           >
                             <div style={{ flex: 1, minWidth: "150px" }}>
@@ -2211,6 +2305,7 @@ export default function VariantCreator() {
                         return (
                           <div
                             key={item.id}
+                            className="history-card"
                             style={{
                               display: "flex",
                               alignItems: "center",
@@ -2220,7 +2315,17 @@ export default function VariantCreator() {
                               borderRadius: "6px",
                               border: "1px solid #e1e3e5",
                               gap: "8px",
-                              flexWrap: "wrap"
+                              flexWrap: "wrap",
+                              transition: "all 0.2s ease",
+                              cursor: "pointer"
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
+                              e.currentTarget.style.borderColor = "#c9cccf";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.boxShadow = "none";
+                              e.currentTarget.style.borderColor = "#e1e3e5";
                             }}
                           >
                             <div style={{ flex: 1, minWidth: "150px" }}>
@@ -3629,8 +3734,12 @@ export default function VariantCreator() {
                                       grid-template-columns: 1fr !important;
                                     }
                                   }
+                                  .image-card {
+                                    transition: all 0.2s ease;
+                                  }
                                   .image-card:hover {
-                                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+                                    transform: translateY(-2px);
                                   }
                                 `}</style>
                               </Stack>
@@ -3846,23 +3955,94 @@ export default function VariantCreator() {
         </Modal.Section>
       </Modal>
 
-      {/* Akış tamamlandıktan sonra küçük başarı kartı */}
+      {/* Akış tamamlandıktan sonra animasyonlu başarı kartı */}
       {flowCompleted && lastUploadStats && (
-        <div style={{ position: "fixed", bottom: 24, right: 24, maxWidth: 340, zIndex: 10 }}>
-          <Card sectioned>
-            <Stack vertical spacing="tight">
-              <Text as="p" variant="bodyMd" fontWeight="semibold">
-                Akış tamamlandı 🎉
-              </Text>
-              <Text as="p" variant="bodySm" color="subdued">
-                {lastUploadStats.productName} için {lastUploadStats.uploaded} görsel, yaklaşık{" "}
-                {lastUploadStats.variantCount} varyanta başarıyla atandı.
-              </Text>
-              <Text as="p" variant="bodySm" color="subdued">
-                Manuel yapmaya göre ~{Math.max(1, Math.round(lastUploadStats.variantCount * 0.5))} dakika kazandın.
-              </Text>
+        <div 
+          className="fade-in-scale"
+          style={{ 
+            position: "fixed", 
+            bottom: 24, 
+            right: 24, 
+            maxWidth: 360, 
+            zIndex: 10,
+            borderRadius: "12px",
+            overflow: "hidden",
+            boxShadow: "0 8px 32px rgba(0, 128, 96, 0.25)"
+          }}
+        >
+          <div style={{
+            background: "linear-gradient(135deg, #008060 0%, #00a878 100%)",
+            padding: "16px",
+            color: "white"
+          }}>
+            <Stack spacing="tight" alignment="center">
+              {/* Animated Checkmark */}
+              <div style={{
+                width: "40px",
+                height: "40px",
+                borderRadius: "50%",
+                background: "rgba(255,255,255,0.2)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                animation: "successPop 0.5s ease-out forwards"
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ overflow: "visible" }}>
+                  <path 
+                    d="M5 13l4 4L19 7" 
+                    stroke="white" 
+                    strokeWidth="3" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                    style={{
+                      strokeDasharray: 50,
+                      strokeDashoffset: 50,
+                      animation: "checkmark 0.5s ease-out 0.3s forwards"
+                    }}
+                  />
+                </svg>
+              </div>
+              <div>
+                <Text as="p" variant="bodyMd" fontWeight="bold">
+                  <span style={{ color: "white" }}>Tamamlandı!</span>
+                </Text>
+                <Text as="p" variant="bodySm">
+                  <span style={{ color: "rgba(255,255,255,0.85)" }}>{lastUploadStats.productName}</span>
+                </Text>
+              </div>
             </Stack>
-          </Card>
+          </div>
+          <div style={{ background: "white", padding: "14px 16px" }}>
+            <Stack vertical spacing="extraTight">
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "16px" }}>📸</span>
+                <Text as="span" variant="bodySm">
+                  <strong>{lastUploadStats.uploaded}</strong> görsel yüklendi
+                </Text>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "16px" }}>🏷️</span>
+                <Text as="span" variant="bodySm">
+                  <strong>{lastUploadStats.variantCount}</strong> varyanta atandı
+                </Text>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" }}>
+                <span style={{ fontSize: "16px" }}>⏱️</span>
+                <Text as="span" variant="bodySm" color="subdued">
+                  ~{Math.max(1, Math.round(lastUploadStats.variantCount * 0.5))} dakika tasarruf
+                </Text>
+              </div>
+            </Stack>
+            <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #e1e3e5" }}>
+              <Button
+                size="slim"
+                fullWidth
+                onClick={() => setFlowCompleted(false)}
+              >
+                Yeni Varyant Oluştur
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
