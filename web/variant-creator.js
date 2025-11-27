@@ -877,10 +877,11 @@ export async function createVariants(session, productId, parsedVariant) {
       
       // NOT: ProductSet mutation'ında da title field'ı kullanılamıyor gibi görünüyor
       // Shopify varyant title'larını otomatik olarak oluşturuyor
-      const hasStock = combo.inventoryQuantity && defaultLocationId;
+      // hasStock: stok değeri tanımlı VE location ID var ise true (0 stok da gönderilmeli!)
+      const hasStock = (combo.inventoryQuantity !== undefined && combo.inventoryQuantity !== null) && defaultLocationId;
       if (hasStock) {
         console.log(`Stok bilgisi gönderiliyor: ${combo.size}/${combo.color} - ${combo.inventoryQuantity} adet (Location: ${defaultLocationId})`);
-      } else if (combo.inventoryQuantity && !defaultLocationId) {
+      } else if ((combo.inventoryQuantity !== undefined && combo.inventoryQuantity !== null) && !defaultLocationId) {
         console.warn(`Stok bilgisi ATLANDI: ${combo.size}/${combo.color} - ${combo.inventoryQuantity} adet (Location ID yok)`);
       }
       
@@ -1079,10 +1080,11 @@ export async function createVariants(session, productId, parsedVariant) {
         return sizeMatch?.name === c.size && colorMatch?.name === c.color;
       });
 
-      const hasStock = combo?.inventoryQuantity && defaultLocationId;
+      // hasStock: combo var, stok değeri tanımlı VE location ID var ise true (0 stok da gönderilmeli!)
+      const hasStock = combo && (combo.inventoryQuantity !== undefined && combo.inventoryQuantity !== null) && defaultLocationId;
       if (hasStock) {
         console.log(`Stok bilgisi gönderiliyor (bulkCreate): ${combo.size}/${combo.color} - ${combo.inventoryQuantity} adet (Location: ${defaultLocationId})`);
-      } else if (combo?.inventoryQuantity && !defaultLocationId) {
+      } else if (combo && (combo.inventoryQuantity !== undefined && combo.inventoryQuantity !== null) && !defaultLocationId) {
         console.warn(`Stok bilgisi ATLANDI (bulkCreate): ${combo.size}/${combo.color} - ${combo.inventoryQuantity} adet (Location ID yok)`);
       }
 
@@ -1257,10 +1259,11 @@ export async function createVariants(session, productId, parsedVariant) {
             }
           });
           
-          const hasStock = combo.inventoryQuantity && defaultLocationId;
+          // hasStock: stok değeri tanımlı VE location ID var ise true (0 stok da gönderilmeli!)
+          const hasStock = (combo.inventoryQuantity !== undefined && combo.inventoryQuantity !== null) && defaultLocationId;
           if (hasStock) {
             console.log(`Stok bilgisi gönderiliyor (productSet fallback): ${combo.size}/${combo.color} - ${combo.inventoryQuantity} adet (Location: ${defaultLocationId})`);
-          } else if (combo.inventoryQuantity && !defaultLocationId) {
+          } else if ((combo.inventoryQuantity !== undefined && combo.inventoryQuantity !== null) && !defaultLocationId) {
             console.warn(`Stok bilgisi ATLANDI (productSet fallback): ${combo.size}/${combo.color} - ${combo.inventoryQuantity} adet (Location ID yok)`);
           }
           

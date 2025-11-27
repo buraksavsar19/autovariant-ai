@@ -13,7 +13,11 @@ api_version = "2026-01"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products"
+# write_products: Ürün ve varyant oluşturma
+# read_locations: Stok için location ID almak
+# write_inventory: Stok miktarını ayarlamak
+# read_inventory: Mevcut stok bilgisini okumak
+scopes = "write_products,read_locations,write_inventory,read_inventory"
 
 [auth]
 redirect_urls = [ "https://shopify-app-template-node-copy-production.up.railway.app/api/auth/callback" ]
