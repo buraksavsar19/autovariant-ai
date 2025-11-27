@@ -74,30 +74,46 @@ RENK ÇIKARMA KURALLARI (ÇOK ÖNEMLİ):
    - "Temel fiyat 500" → basePrice: 500
    - Eğer sadece artırma/azaltma varsa (örn: "+100 lira"), basePrice: null olmalı
 
-9. STOK KURALLARI (ÇOK ÖNEMLİ - DİKKATLİ OKU):
-   defaultStock: Tüm varyantlar için geçerli varsayılan stok miktarı (sayı olarak)
-   stockRules: Belirli varyantlar için özel stok kuralları
+9. STOK KURALLARI (ÇOK ÇOK ÖNEMLİ - DİKKATLİ OKU!):
+   defaultStock: Tüm varyantlar için geçerli varsayılan stok miktarı (SAYI olarak, null değil!)
+   stockRules: SADECE belirli beden veya renk için özel stok kuralları (nadiren kullanılır)
    
-   STOK İFADELERİ VE KARŞILIKLARI:
+   ⚠️ ALTIN KURAL: Eğer prompt'ta "her", "tüm", "hepsi", "varyant başına", "adet" gibi genel ifadeler varsa → MUTLAKA defaultStock kullan!
+   ⚠️ stockRules SADECE belirli bir beden veya renk için FARKLI stok istendiğinde kullanılır!
+   
+   STOK İFADELERİ → defaultStock (HEPSİ defaultStock OLMALI!):
    - "Her varyant için 10 adet stok" → defaultStock: 10
+   - "her varyantın 10 adet olmasını istiyorum" → defaultStock: 10
+   - "her varyant 10 adet" → defaultStock: 10
+   - "varyantların her biri 10 adet" → defaultStock: 10
+   - "varyant başına 10 adet" → defaultStock: 10
    - "tümü için 10 adet stok" → defaultStock: 10
    - "hepsi için 10 adet" → defaultStock: 10
+   - "hepsinde 10 adet" → defaultStock: 10
    - "her biri 10 adet" → defaultStock: 10
+   - "her birine 10 adet" → defaultStock: 10
    - "10 adet stok" → defaultStock: 10
    - "stok 10" → defaultStock: 10
    - "stok: 10" → defaultStock: 10
    - "10 stok" → defaultStock: 10
    - "10'ar adet" → defaultStock: 10
+   - "10'ar adet stok" → defaultStock: 10
    - "tüm varyantlar 10 adet" → defaultStock: 10
    - "hepsine 10 adet" → defaultStock: 10
    - "varyant başına 10" → defaultStock: 10
+   - "stoğu 10" → defaultStock: 10
+   - "stokları 10" → defaultStock: 10
    
-   ÖZEL STOK KURALLARI:
+   ÖZEL STOK KURALLARI (stockRules - SADECE BELİRLİ BEDEN/RENK İÇİN!):
    - "2XL için 5 adet, diğerleri için 10 adet" → stockRules: [{"condition": "2XL", "quantity": 5}], defaultStock: 10
-   - "Kırmızı için 20 adet" → stockRules: [{"condition": "Kırmızı", "quantity": 20}]
+   - "Kırmızı için 20 adet, diğerleri 10 adet" → stockRules: [{"condition": "Kırmızı", "quantity": 20}], defaultStock: 10
+   - "Sadece mavi için 50 adet" → stockRules: [{"condition": "Mavi", "quantity": 50}], defaultStock: null
    
-   ÖNEMLİ: Eğer prompt'ta herhangi bir stok miktarı belirtilmişse, MUTLAKA defaultStock veya stockRules'a yaz!
-   Stok belirtilmemişse defaultStock: null olmalı.
+   ⚠️ ÇOK ÖNEMLİ: 
+   - Eğer prompt'ta GENEL bir stok miktarı belirtilmişse (örn: "10 adet", "her varyant 10") → MUTLAKA defaultStock: 10 yaz!
+   - stockRules'u BOŞ bırak [] eğer belirli beden/renk için özel kural yoksa!
+   - Stok belirtilmemişse defaultStock: null olmalı.
+   - YANLIŞ: stockRules'a "tümü" condition'ı eklemek → DOĞRU: defaultStock kullanmak
 
 10. Sadece JSON döndür, açıklama yapma. JSON formatı MUTLAKA geçerli olmalı!
 
@@ -151,13 +167,34 @@ Response: {"sizes": ["S", "M", "L", "XL", "2XL"], "colors": ["Yeşil", "Sarı", 
 Prompt: "S M L XL 2XL 3XL bedenler, siyah beyaz gri lacivert renkler, fiyat 750 lira, 2XL ve üzeri için +150 lira, tümü için 25 adet"
 Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Siyah", "Beyaz", "Gri", "Lacivert"], "priceRules": [{"condition": "2XL ve üzeri", "increase": 150}], "basePrice": 750, "stockRules": [], "defaultStock": 25}
 
+Örnek 13 (STOK - "HER VARYANT" İFADESİ - ÇOK ÖNEMLİ!):
+Prompt: "S M L XL bedenler, kırmızı mavi yeşil renkler, her varyantın 10 adet olmasını istiyorum"
+Response: {"sizes": ["S", "M", "L", "XL"], "colors": ["Kırmızı", "Mavi", "Yeşil"], "priceRules": [], "basePrice": null, "stockRules": [], "defaultStock": 10}
+
+Örnek 14 (STOK - KISA VE NET):
+Prompt: "S M L XL, kırmızı mavi, her varyant 10 adet"
+Response: {"sizes": ["S", "M", "L", "XL"], "colors": ["Kırmızı", "Mavi"], "priceRules": [], "basePrice": null, "stockRules": [], "defaultStock": 10}
+
+Örnek 15 (STOK - VARYANT BAŞINA):
+Prompt: "S'den XL'e kadar, siyah beyaz gri, varyant başına 15 adet stok"
+Response: {"sizes": ["S", "M", "L", "XL"], "colors": ["Siyah", "Beyaz", "Gri"], "priceRules": [], "basePrice": null, "stockRules": [], "defaultStock": 15}
+
+Örnek 16 (STOK - FİYAT VE STOK BİRLİKTE):
+Prompt: "M L XL 2XL, mavi yeşil sarı, fiyat 500, her biri 20 adet"
+Response: {"sizes": ["M", "L", "XL", "2XL"], "colors": ["Mavi", "Yeşil", "Sarı"], "priceRules": [], "basePrice": 500, "stockRules": [], "defaultStock": 20}
+
 YANLIŞ ÖRNEK (Standart eklenmemeli):
 {"sizes": ["S", "M", "L"], "colors": ["Standart", "Kırmızı"], ...} ❌
 
 YANLIŞ ÖRNEK (Renk atlanmamalı):
 Prompt: "kırmızı beyaz mavi"
 Yanlış: {"colors": ["Kırmızı", "Mavi"]} ❌ (Beyaz atlandı!)
-Doğru: {"colors": ["Kırmızı", "Beyaz", "Mavi"]} ✓`;
+Doğru: {"colors": ["Kırmızı", "Beyaz", "Mavi"]} ✓
+
+YANLIŞ ÖRNEK (Stok yanlış yerde):
+Prompt: "her varyant 10 adet"
+Yanlış: {"stockRules": [{"condition": "tümü", "quantity": 10}], "defaultStock": null} ❌
+Doğru: {"stockRules": [], "defaultStock": 10} ✓`;
 
   try {
     const completion = await openai.chat.completions.create({

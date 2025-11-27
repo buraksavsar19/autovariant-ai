@@ -593,9 +593,16 @@ export default function VariantCreator() {
           if (data.parsed.stockRules && data.parsed.stockRules.length > 0) {
             data.parsed.stockRules.forEach((rule) => {
               const condition = rule.condition?.toLowerCase() || "";
-              if (condition === "tümü" || condition === "hepsi" || condition === "her biri") {
+              // Genel kurallar (tümü için)
+              if (condition === "tümü" || condition === "hepsi" || condition === "her biri" || condition === "genel" || condition === "default") {
                 variantStock = rule.quantity || variantStock;
-              } else if (condition.includes(size.toLowerCase())) {
+              } 
+              // Beden bazlı kurallar
+              else if (size && condition.includes(size.toLowerCase())) {
+                variantStock = rule.quantity || variantStock;
+              }
+              // Renk bazlı kurallar (ÖNEMLİ: daha önce eksikti!)
+              else if (color && condition.includes(color.toLowerCase())) {
                 variantStock = rule.quantity || variantStock;
               }
             });
