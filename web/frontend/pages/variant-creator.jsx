@@ -262,6 +262,8 @@ export default function VariantCreator() {
   const [lastEditedValue, setLastEditedValue] = useState(null); // Son düzenlenen değer { type: 'price'|'stock', value: number, variantId: string }
   const [showApplyAllBanner, setShowApplyAllBanner] = useState(false); // Tümüne uygula banner'ı
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 }); // Yükleme ilerleme durumu
+  const [draggedImageId, setDraggedImageId] = useState(null); // Sürüklenen görsel ID'si
+  const [dragOverImageId, setDragOverImageId] = useState(null); // Üzerine gelinen görsel ID'si
 
   // İlk kullanım kontrolü
   const ONBOARDING_KEY = "autovariant_onboarding_completed";
@@ -789,6 +791,61 @@ export default function VariantCreator() {
       delete newMatches[imageId];
       setImageColorMatches(newMatches);
     }
+  };
+
+  // Drag & Drop ile görsel sıralama
+  const handleDragStart = (e, imageId) => {
+    setDraggedImageId(imageId);
+    e.dataTransfer.effectAllowed = "move";
+    // Drag sırasında görüntüyü yarı saydam yap
+    e.currentTarget.style.opacity = "0.5";
+  };
+
+  const handleDragEnd = (e) => {
+    setDraggedImageId(null);
+    setDragOverImageId(null);
+    e.currentTarget.style.opacity = "1";
+  };
+
+  const handleDragOver = (e, imageId) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (imageId !== draggedImageId) {
+      setDragOverImageId(imageId);
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    setDragOverImageId(null);
+  };
+
+  const handleDrop = (e, targetImageId) => {
+    e.preventDefault();
+    
+    if (!draggedImageId || draggedImageId === targetImageId) {
+      setDraggedImageId(null);
+      setDragOverImageId(null);
+      return;
+    }
+
+    // Görselleri yeniden sırala
+    setUploadedImages(prev => {
+      const newImages = [...prev];
+      const draggedIndex = newImages.findIndex(img => img.id === draggedImageId);
+      const targetIndex = newImages.findIndex(img => img.id === targetImageId);
+      
+      if (draggedIndex === -1 || targetIndex === -1) return prev;
+      
+      // Sürüklenen öğeyi çıkar
+      const [draggedItem] = newImages.splice(draggedIndex, 1);
+      // Hedef konuma ekle
+      newImages.splice(targetIndex, 0, draggedItem);
+      
+      return newImages;
+    });
+
+    setDraggedImageId(null);
+    setDragOverImageId(null);
   };
 
   // Renk analizi (AI ile)
@@ -3404,6 +3461,24 @@ export default function VariantCreator() {
                                   </Banner>
                                 )}
 
+                                {/* Sıralama ipucu */}
+                                {uploadedImages.some(img => img.colorMatch) && (
+                                  <div style={{ 
+                                    background: "#f0f7ff", 
+                                    padding: "8px 12px", 
+                                    borderRadius: "6px",
+                                    marginBottom: "8px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "8px"
+                                  }}>
+                                    <span>🔀</span>
+                                    <Text as="span" variant="bodySm" color="subdued">
+                                      Fotoğrafları sürükleyerek sıralayabilirsiniz
+                                    </Text>
+                                  </div>
+                                )}
+
                                 <div 
                                   className="image-grid"
                                   style={{
@@ -3412,27 +3487,63 @@ export default function VariantCreator() {
                                     gap: "12px",
                                   }}
                                 >
-                                  {uploadedImages.map((img) => (
+                                  {uploadedImages.map((img, index) => (
                                     <div
                                       key={img.id}
                                       className="image-card"
+                                      draggable={!!img.colorMatch}
+                                      onDragStart={(e) => handleDragStart(e, img.id)}
+                                      onDragEnd={handleDragEnd}
+                                      onDragOver={(e) => handleDragOver(e, img.id)}
+                                      onDragLeave={handleDragLeave}
+                                      onDrop={(e) => handleDrop(e, img.id)}
                                       style={{
                                         position: "relative",
-                                        border: "2px solid #e1e3e5",
+                                        border: dragOverImageId === img.id 
+                                          ? "2px dashed #5c6ac4" 
+                                          : draggedImageId === img.id
+                                            ? "2px dashed #8c9196"
+                                            : "2px solid #e1e3e5",
                                         borderRadius: "8px",
                                         padding: "8px",
-                                        backgroundColor: "#fff",
-                                        transition: "box-shadow 0.2s ease"
+                                        backgroundColor: dragOverImageId === img.id ? "#f0f4ff" : "#fff",
+                                        transition: "all 0.2s ease",
+                                        cursor: img.colorMatch ? "grab" : "default",
+                                        opacity: draggedImageId === img.id ? 0.5 : 1,
+                                        transform: dragOverImageId === img.id ? "scale(1.02)" : "scale(1)"
                                       }}
                                     >
+                                      {/* Sıra numarası */}
+                                      {img.colorMatch && (
+                                        <div style={{
+                                          position: "absolute",
+                                          top: "4px",
+                                          left: "4px",
+                                          width: "22px",
+                                          height: "22px",
+                                          borderRadius: "50%",
+                                          background: "#5c6ac4",
+                                          color: "white",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          fontSize: "11px",
+                                          fontWeight: "600",
+                                          zIndex: 2
+                                        }}>
+                                          {index + 1}
+                                        </div>
+                                      )}
                                       <img
                                         src={img.preview}
                                         alt="Preview"
+                                        draggable={false}
                                         style={{
                                           width: "100%",
                                           height: "120px",
                                           objectFit: "cover",
                                           borderRadius: "4px",
+                                          pointerEvents: "none"
                                         }}
                                       />
                                       <Button
