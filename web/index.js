@@ -63,59 +63,88 @@ app.get("/privacy", (_req, res) => {
     const lines = privacyContent.split('\n');
     let htmlParts = [];
     let inList = false;
+    let inParagraph = false;
     
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+      const line = lines[i];
+      const trimmed = line.trim();
       
-      if (line.startsWith('# ')) {
+      if (trimmed.startsWith('# ')) {
         if (inList) {
           htmlParts.push('</ul>');
           inList = false;
         }
-        htmlParts.push(`<h1>${line.substring(2)}</h1>`);
-      } else if (line.startsWith('## ')) {
+        if (inParagraph) {
+          htmlParts.push('</p>');
+          inParagraph = false;
+        }
+        htmlParts.push(`<h1>${trimmed.substring(2)}</h1>`);
+      } else if (trimmed.startsWith('## ')) {
         if (inList) {
           htmlParts.push('</ul>');
           inList = false;
         }
-        htmlParts.push(`<h2>${line.substring(3)}</h2>`);
-      } else if (line.startsWith('### ')) {
+        if (inParagraph) {
+          htmlParts.push('</p>');
+          inParagraph = false;
+        }
+        htmlParts.push(`<h2>${trimmed.substring(3)}</h2>`);
+      } else if (trimmed.startsWith('### ')) {
         if (inList) {
           htmlParts.push('</ul>');
           inList = false;
         }
-        htmlParts.push(`<h3>${line.substring(4)}</h3>`);
-      } else if (line.startsWith('- ')) {
+        if (inParagraph) {
+          htmlParts.push('</p>');
+          inParagraph = false;
+        }
+        htmlParts.push(`<h3>${trimmed.substring(4)}</h3>`);
+      } else if (trimmed.startsWith('- ')) {
+        if (inParagraph) {
+          htmlParts.push('</p>');
+          inParagraph = false;
+        }
         if (!inList) {
           htmlParts.push('<ul>');
           inList = true;
         }
-        htmlParts.push(`<li>${line.substring(2)}</li>`);
-      } else if (line.startsWith('**') && line.endsWith('**')) {
+        // Bold text'i replace et
+        let listItem = trimmed.substring(2).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        htmlParts.push(`<li>${listItem}</li>`);
+      } else if (trimmed === '' || trimmed === '---') {
         if (inList) {
           htmlParts.push('</ul>');
           inList = false;
         }
-        htmlParts.push(`<p><strong>${line.substring(2, line.length - 2)}</strong></p>`);
-      } else if (line === '') {
-        if (inList) {
-          htmlParts.push('</ul>');
-          inList = false;
+        if (inParagraph) {
+          htmlParts.push('</p>');
+          inParagraph = false;
         }
-        htmlParts.push('<br>');
+        if (trimmed === '---') {
+          htmlParts.push('<hr>');
+        }
       } else {
         if (inList) {
           htmlParts.push('</ul>');
           inList = false;
         }
         // Bold text'i replace et
-        let processedLine = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-        htmlParts.push(`<p>${processedLine}</p>`);
+        let processedLine = trimmed.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        if (!inParagraph) {
+          htmlParts.push('<p>');
+          inParagraph = true;
+        } else {
+          htmlParts.push(' ');
+        }
+        htmlParts.push(processedLine);
       }
     }
     
     if (inList) {
       htmlParts.push('</ul>');
+    }
+    if (inParagraph) {
+      htmlParts.push('</p>');
     }
     
     res.status(200)
@@ -128,21 +157,67 @@ app.get("/privacy", (_req, res) => {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Privacy Policy - Autovariant AI</title>
           <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
             body {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-              line-height: 1.6;
-              max-width: 800px;
+              line-height: 1.8;
+              max-width: 900px;
               margin: 0 auto;
-              padding: 20px;
-              color: #333;
+              padding: 40px 20px;
+              color: #2c3e50;
+              background-color: #f8f9fa;
             }
-            h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
-            h2 { color: #34495e; margin-top: 30px; }
-            h3 { color: #34495e; margin-top: 20px; }
-            ul { margin: 10px 0; padding-left: 20px; }
-            li { margin: 5px 0; }
-            p { margin: 10px 0; }
-            strong { font-weight: bold; }
+            h1 {
+              color: #2c3e50;
+              border-bottom: 3px solid #3498db;
+              padding-bottom: 15px;
+              margin-bottom: 30px;
+              font-size: 2.5em;
+              font-weight: 700;
+            }
+            h2 {
+              color: #34495e;
+              margin-top: 40px;
+              margin-bottom: 20px;
+              font-size: 1.8em;
+              font-weight: 600;
+              padding-top: 10px;
+            }
+            h3 {
+              color: #34495e;
+              margin-top: 30px;
+              margin-bottom: 15px;
+              font-size: 1.4em;
+              font-weight: 600;
+            }
+            p {
+              margin: 15px 0;
+              text-align: justify;
+              font-size: 1.05em;
+            }
+            ul {
+              margin: 20px 0;
+              padding-left: 30px;
+              list-style-type: disc;
+            }
+            li {
+              margin: 10px 0;
+              line-height: 1.8;
+              font-size: 1.05em;
+            }
+            strong {
+              font-weight: 600;
+              color: #2c3e50;
+            }
+            hr {
+              margin: 30px 0;
+              border: none;
+              border-top: 1px solid #e0e0e0;
+            }
           </style>
         </head>
         <body>
@@ -199,59 +274,88 @@ app.get("/terms", (_req, res) => {
     const lines = termsContent.split('\n');
     let htmlParts = [];
     let inList = false;
+    let inParagraph = false;
     
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+      const line = lines[i];
+      const trimmed = line.trim();
       
-      if (line.startsWith('# ')) {
+      if (trimmed.startsWith('# ')) {
         if (inList) {
           htmlParts.push('</ul>');
           inList = false;
         }
-        htmlParts.push(`<h1>${line.substring(2)}</h1>`);
-      } else if (line.startsWith('## ')) {
+        if (inParagraph) {
+          htmlParts.push('</p>');
+          inParagraph = false;
+        }
+        htmlParts.push(`<h1>${trimmed.substring(2)}</h1>`);
+      } else if (trimmed.startsWith('## ')) {
         if (inList) {
           htmlParts.push('</ul>');
           inList = false;
         }
-        htmlParts.push(`<h2>${line.substring(3)}</h2>`);
-      } else if (line.startsWith('### ')) {
+        if (inParagraph) {
+          htmlParts.push('</p>');
+          inParagraph = false;
+        }
+        htmlParts.push(`<h2>${trimmed.substring(3)}</h2>`);
+      } else if (trimmed.startsWith('### ')) {
         if (inList) {
           htmlParts.push('</ul>');
           inList = false;
         }
-        htmlParts.push(`<h3>${line.substring(4)}</h3>`);
-      } else if (line.startsWith('- ')) {
+        if (inParagraph) {
+          htmlParts.push('</p>');
+          inParagraph = false;
+        }
+        htmlParts.push(`<h3>${trimmed.substring(4)}</h3>`);
+      } else if (trimmed.startsWith('- ')) {
+        if (inParagraph) {
+          htmlParts.push('</p>');
+          inParagraph = false;
+        }
         if (!inList) {
           htmlParts.push('<ul>');
           inList = true;
         }
-        htmlParts.push(`<li>${line.substring(2)}</li>`);
-      } else if (line.startsWith('**') && line.endsWith('**')) {
+        // Bold text'i replace et
+        let listItem = trimmed.substring(2).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        htmlParts.push(`<li>${listItem}</li>`);
+      } else if (trimmed === '' || trimmed === '---') {
         if (inList) {
           htmlParts.push('</ul>');
           inList = false;
         }
-        htmlParts.push(`<p><strong>${line.substring(2, line.length - 2)}</strong></p>`);
-      } else if (line === '') {
-        if (inList) {
-          htmlParts.push('</ul>');
-          inList = false;
+        if (inParagraph) {
+          htmlParts.push('</p>');
+          inParagraph = false;
         }
-        htmlParts.push('<br>');
+        if (trimmed === '---') {
+          htmlParts.push('<hr>');
+        }
       } else {
         if (inList) {
           htmlParts.push('</ul>');
           inList = false;
         }
         // Bold text'i replace et
-        let processedLine = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-        htmlParts.push(`<p>${processedLine}</p>`);
+        let processedLine = trimmed.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        if (!inParagraph) {
+          htmlParts.push('<p>');
+          inParagraph = true;
+        } else {
+          htmlParts.push(' ');
+        }
+        htmlParts.push(processedLine);
       }
     }
     
     if (inList) {
       htmlParts.push('</ul>');
+    }
+    if (inParagraph) {
+      htmlParts.push('</p>');
     }
     
     res.status(200)
@@ -264,21 +368,67 @@ app.get("/terms", (_req, res) => {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Terms of Service - Autovariant AI</title>
           <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
             body {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-              line-height: 1.6;
-              max-width: 800px;
+              line-height: 1.8;
+              max-width: 900px;
               margin: 0 auto;
-              padding: 20px;
-              color: #333;
+              padding: 40px 20px;
+              color: #2c3e50;
+              background-color: #f8f9fa;
             }
-            h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
-            h2 { color: #34495e; margin-top: 30px; }
-            h3 { color: #34495e; margin-top: 20px; }
-            ul { margin: 10px 0; padding-left: 20px; }
-            li { margin: 5px 0; }
-            p { margin: 10px 0; }
-            strong { font-weight: bold; }
+            h1 {
+              color: #2c3e50;
+              border-bottom: 3px solid #3498db;
+              padding-bottom: 15px;
+              margin-bottom: 30px;
+              font-size: 2.5em;
+              font-weight: 700;
+            }
+            h2 {
+              color: #34495e;
+              margin-top: 40px;
+              margin-bottom: 20px;
+              font-size: 1.8em;
+              font-weight: 600;
+              padding-top: 10px;
+            }
+            h3 {
+              color: #34495e;
+              margin-top: 30px;
+              margin-bottom: 15px;
+              font-size: 1.4em;
+              font-weight: 600;
+            }
+            p {
+              margin: 15px 0;
+              text-align: justify;
+              font-size: 1.05em;
+            }
+            ul {
+              margin: 20px 0;
+              padding-left: 30px;
+              list-style-type: disc;
+            }
+            li {
+              margin: 10px 0;
+              line-height: 1.8;
+              font-size: 1.05em;
+            }
+            strong {
+              font-weight: 600;
+              color: #2c3e50;
+            }
+            hr {
+              margin: 30px 0;
+              border: none;
+              border-top: 1px solid #e0e0e0;
+            }
           </style>
         </head>
         <body>
