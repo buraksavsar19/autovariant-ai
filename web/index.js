@@ -39,7 +39,7 @@ app.get("/privacy", (_req, res) => {
     const possiblePaths = [
       join(process.cwd(), "PRIVACY.md"),
       join(process.cwd(), "..", "PRIVACY.md"),
-      join(__dirname, "..", "..", "PRIVACY.md"),
+      join(process.cwd(), "..", "..", "PRIVACY.md"),
     ];
     
     let privacyContent = null;
@@ -176,7 +176,7 @@ app.get("/terms", (_req, res) => {
     const possiblePaths = [
       join(process.cwd(), "TERMS.md"),
       join(process.cwd(), "..", "TERMS.md"),
-      join(__dirname, "..", "..", "TERMS.md"),
+      join(process.cwd(), "..", "..", "TERMS.md"),
     ];
     
     let termsContent = null;
