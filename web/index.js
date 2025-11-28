@@ -35,11 +35,10 @@ const app = express();
 // Bu route'lar authentication middleware'den ÖNCE olmalı
 app.get("/privacy", (_req, res) => {
   try {
-    // Railway'de working directory farklı olabilir, birden fazla path dene
+    // Railway'de working directory /app, dosyalar web/ klasöründe
     const possiblePaths = [
-      join(process.cwd(), "PRIVACY.md"),
-      join(process.cwd(), "..", "PRIVACY.md"),
-      join(process.cwd(), "..", "..", "PRIVACY.md"),
+      join(process.cwd(), "PRIVACY.md"),  // web/PRIVACY.md (Railway'de /app/PRIVACY.md)
+      join(process.cwd(), "..", "PRIVACY.md"),  // Root'taki dosya (fallback)
     ];
     
     let privacyContent = null;
@@ -172,11 +171,10 @@ app.get("/privacy", (_req, res) => {
 
 app.get("/terms", (_req, res) => {
   try {
-    // Railway'de working directory farklı olabilir, birden fazla path dene
+    // Railway'de working directory /app, dosyalar web/ klasöründe
     const possiblePaths = [
-      join(process.cwd(), "TERMS.md"),
-      join(process.cwd(), "..", "TERMS.md"),
-      join(process.cwd(), "..", "..", "TERMS.md"),
+      join(process.cwd(), "TERMS.md"),  // web/TERMS.md (Railway'de /app/TERMS.md)
+      join(process.cwd(), "..", "TERMS.md"),  // Root'taki dosya (fallback)
     ];
     
     let termsContent = null;
