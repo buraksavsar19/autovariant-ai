@@ -1873,6 +1873,97 @@ app.post("/api/images/upload-to-shopify", upload.array("images", 20), async (req
   }
 });
 
+// Privacy Policy ve Terms of Service route'ları (public, authentication gerektirmez)
+app.get("/privacy", (_req, res) => {
+  try {
+    const privacyContent = readFileSync(join(process.cwd(), "PRIVACY.md"), "utf-8");
+    res.status(200)
+      .set("Content-Type", "text/html")
+      .send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Privacy Policy - Autovariant AI</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+              line-height: 1.6;
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 20px;
+              color: #333;
+            }
+            h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+            h2 { color: #34495e; margin-top: 30px; }
+            code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; }
+          </style>
+        </head>
+        <body>
+          ${privacyContent.split('\n').map(line => {
+            if (line.startsWith('# ')) return `<h1>${line.substring(2)}</h1>`;
+            if (line.startsWith('## ')) return `<h2>${line.substring(3)}</h2>`;
+            if (line.startsWith('### ')) return `<h3>${line.substring(4)}</h3>`;
+            if (line.startsWith('- ')) return `<li>${line.substring(2)}</li>`;
+            if (line.startsWith('**') && line.endsWith('**')) return `<strong>${line.substring(2, line.length - 2)}</strong>`;
+            if (line.trim() === '') return '<br>';
+            return `<p>${line}</p>`;
+          }).join('')}
+        </body>
+        </html>
+      `);
+  } catch (error) {
+    console.error("Privacy Policy okuma hatası:", error);
+    res.status(500).send("Privacy Policy yüklenemedi");
+  }
+});
+
+app.get("/terms", (_req, res) => {
+  try {
+    const termsContent = readFileSync(join(process.cwd(), "TERMS.md"), "utf-8");
+    res.status(200)
+      .set("Content-Type", "text/html")
+      .send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Terms of Service - Autovariant AI</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+              line-height: 1.6;
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 20px;
+              color: #333;
+            }
+            h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+            h2 { color: #34495e; margin-top: 30px; }
+            code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; }
+          </style>
+        </head>
+        <body>
+          ${termsContent.split('\n').map(line => {
+            if (line.startsWith('# ')) return `<h1>${line.substring(2)}</h1>`;
+            if (line.startsWith('## ')) return `<h2>${line.substring(3)}</h2>`;
+            if (line.startsWith('### ')) return `<h3>${line.substring(4)}</h3>`;
+            if (line.startsWith('- ')) return `<li>${line.substring(2)}</li>`;
+            if (line.startsWith('**') && line.endsWith('**')) return `<strong>${line.substring(2, line.length - 2)}</strong>`;
+            if (line.trim() === '') return '<br>';
+            return `<p>${line}</p>`;
+          }).join('')}
+        </body>
+        </html>
+      `);
+  } catch (error) {
+    console.error("Terms of Service okuma hatası:", error);
+    res.status(500).send("Terms of Service yüklenemedi");
+  }
+});
+
 app.use(shopify.cspHeaders());
 app.use(serveStatic(STATIC_PATH, { index: false }));
 
