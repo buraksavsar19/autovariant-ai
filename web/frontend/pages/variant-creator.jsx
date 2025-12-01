@@ -2539,8 +2539,7 @@ export default function VariantCreator() {
                 </Card>
               )}
 
-              {!isLoadingProducts &&
-                productsData?.products &&
+              {productsData?.products &&
                 productsData.products.length === 0 && (
                   <Card sectioned>
                     <div style={{ 
