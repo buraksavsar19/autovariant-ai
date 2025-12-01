@@ -618,91 +618,76 @@ app.get("/api/test", (req, res) => {
 // ============================================================================
 // Bu endpoint'i EN BAŞTA tanımla ki hiçbir middleware intercept etmesin
 app.get("/api/products/list", async (req, res) => {
-  const startTime = Date.now();
-  
   // HEMEN log - request geldiğini görmek için
   console.log("✅✅✅ /api/products/list endpoint HIT - Request received ✅✅✅");
-  console.log("🔍 Request method:", req.method);
-  console.log("🔍 Request URL:", req.url);
-  console.log("🔍 Request path:", req.path);
-  console.log("🔍 Request query:", req.query);
-  console.log("🔍 Request headers:", {
-    cookie: req.headers.cookie ? "present (" + req.headers.cookie.substring(0, 100) + ")" : "missing",
-    origin: req.headers.origin,
-    referer: req.headers.referer,
-    'user-agent': req.headers['user-agent']?.substring(0, 50)
-  });
   
-  // Hemen response headers set et - timeout'u önlemek için
+  // Hemen response headers set et
   res.setHeader('Content-Type', 'application/json');
   
-  // Shop bilgisini query'den, header'dan veya cookie'den al
-  let shop = req.query.shop || req.headers['x-shopify-shop-domain'];
-  
-  // Eğer shop yoksa, referer'dan al
-  if (!shop && req.headers.referer) {
-    try {
-      const refererUrl = new URL(req.headers.referer);
-      shop = refererUrl.searchParams.get('shop');
-    } catch (e) {
-      // URL parse hatası, devam et
-    }
-  }
-  
-  // Eğer hala shop yoksa, cookie'lerden al
-  if (!shop && req.headers.cookie) {
-    try {
-      const cookies = req.headers.cookie.split(';').reduce((acc, cookie) => {
-        const [key, value] = cookie.trim().split('=');
-        acc[key] = value;
-        return acc;
-      }, {});
-      // Shopify cookie formatını kontrol et
-      shop = cookies['shopify_app_session'] || cookies['shop'];
-    } catch (e) {
-      // Cookie parse hatası, devam et
-    }
-  }
-  
-  if (!shop) {
-    console.error("❌ Shop bilgisi bulunamadı - returning empty array immediately");
-    // Shop yoksa bile HEMEN boş array döndür - frontend takılı kalmasın
-    return res.status(200).json({ 
-      products: [],
-      error: "Shop information not found - please reinstall the app"
-    });
-  }
-  
-  console.log("🔍 Shop found:", shop);
-  
-  // Session'ı database'den yükle
+  // CRITICAL: HEMEN boş array döndür - backend'in çalıştığını test et
+  // Eğer bu bile gelmiyorsa, sorun Railway routing'de
   try {
-    const sessionId = `shopify_app_session_${shop}`;
-    console.log("🔍 Loading session with ID:", sessionId);
+    // Shop bilgisini query'den, header'dan veya cookie'den al
+    let shop = req.query.shop || req.headers['x-shopify-shop-domain'];
     
-    const session = await shopify.config.sessionStorage.loadSession(sessionId);
+    if (!shop && req.headers.referer) {
+      try {
+        const refererUrl = new URL(req.headers.referer);
+        shop = refererUrl.searchParams.get('shop');
+      } catch (e) {}
+    }
     
-    if (!session) {
-      console.error("❌ Session database'de bulunamadı for shop:", shop);
-      // Session yoksa bile HEMEN boş array döndür
+    if (!shop && req.headers.cookie) {
+      try {
+        const cookies = req.headers.cookie.split(';').reduce((acc, cookie) => {
+          const [key, value] = cookie.trim().split('=');
+          acc[key] = value;
+          return acc;
+        }, {});
+        shop = cookies['shopify_app_session'] || cookies['shop'];
+      } catch (e) {}
+    }
+    
+    if (!shop) {
+      console.error("❌ Shop bilgisi bulunamadı");
       return res.status(200).json({ 
         products: [],
-        error: "Session not found - please reinstall the app"
+        error: "Shop information not found - please reinstall the app"
       });
     }
     
-    // Session'ı res.locals'a set et
-    res.locals.shopify = { session };
-    console.log("✅ Session loaded:", session.shop);
+    console.log("🔍 Shop found:", shop);
     
-    // Session var, devam et
-    await handleProductsList(req, res, startTime);
-  } catch (sessionError) {
-    console.error("❌ Session load error:", sessionError);
-    // Hata durumunda bile HEMEN response döndür
+    // Session'ı database'den yükle
+    try {
+      const sessionId = `shopify_app_session_${shop}`;
+      const session = await shopify.config.sessionStorage.loadSession(sessionId);
+      
+      if (!session) {
+        console.error("❌ Session database'de bulunamadı");
+        return res.status(200).json({ 
+          products: [],
+          error: "Session not found - please reinstall the app"
+        });
+      }
+      
+      res.locals.shopify = { session };
+      console.log("✅ Session loaded:", session.shop);
+      
+      // Session var, devam et
+      await handleProductsList(req, res, Date.now());
+    } catch (sessionError) {
+      console.error("❌ Session load error:", sessionError.message);
+      return res.status(200).json({ 
+        products: [],
+        error: "Session error - please reinstall the app"
+      });
+    }
+  } catch (error) {
+    console.error(`❌ Error in /api/products/list:`, error.message);
     return res.status(200).json({ 
       products: [],
-      error: "Session error - please reinstall the app"
+      error: error.message || "Ürünler yüklenirken bir hata oluştu"
     });
   }
 });
