@@ -785,19 +785,28 @@ app.get("/api/products/list", async (req, res) => {
 
     const duration = Date.now() - startTime;
     console.log(`✅ Products loaded in ${duration}ms, total: ${allProducts.length}`);
-    console.log(`📋 First 3 products:`, allProducts.slice(0, 3).map(p => ({ id: p.id, title: p.title })));
+    if (allProducts.length > 0) {
+      console.log(`📋 First 3 products:`, allProducts.slice(0, 3).map(p => ({ id: p.id, title: p.title })));
+    } else {
+      console.warn(`⚠️ No products found for shop: ${res.locals.shopify.session.shop}`);
+    }
 
+    // CORS headers ekle (gerekirse)
+    res.setHeader('Content-Type', 'application/json');
     res.status(200).send({ products: allProducts });
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(`❌ Ürünler listelenirken hata (${duration}ms):`, error);
+    const shop = res.locals.shopify?.session?.shop || 'Unknown';
+    console.error(`❌ [${shop}] Ürünler listelenirken hata (${duration}ms):`, error);
     console.error("Error details:", {
       message: error.message,
       stack: error.stack,
-      name: error.name
+      name: error.name,
+      shop: shop
     });
     
-    // Hata durumunda detaylı bilgi döndür
+    // Hata durumunda detaylı bilgi döndür - her zaman 200 döndür ki frontend takılı kalmasın
+    res.setHeader('Content-Type', 'application/json');
     res.status(200).send({ 
       products: [],
       error: error.message || "Ürünler yüklenirken bir hata oluştu",

@@ -573,32 +573,60 @@ export default function VariantCreator() {
       try {
         const response = await fetch(endpoint, {
           signal: controller.signal,
+          credentials: 'include', // Session cookie'lerini gönder
+          headers: {
+            'Content-Type': 'application/json',
+          },
         });
         clearTimeout(timeoutId);
+        
+        // Response'u parse etmeden önce status kontrolü
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { error: errorText || `HTTP ${response.status}` };
+          }
+          console.error("❌ API Error Response:", {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData
+          });
+          throw new Error(errorData.error || `HTTP ${response.status}: Ürünler yüklenemedi`);
+        }
         
         const data = await response.json();
         console.log("📦 Products API response:", {
           status: response.status,
           ok: response.ok,
           productsCount: data.products?.length || 0,
-          error: data.error
+          error: data.error,
+          hasProducts: !!data.products,
+          isArray: Array.isArray(data.products)
         });
         
-        if (!response.ok) {
-          // Hata durumunda error bilgisi ile döndür
-          throw new Error(data.error || `HTTP ${response.status}: Ürünler yüklenemedi`);
+        // products array'i kontrol et
+        if (!data.products) {
+          console.warn("⚠️ No products field in response:", data);
+          return { products: [], error: data.error || "Ürünler bulunamadı" };
         }
         
-        // products array'i kontrol et
-        if (!data.products || !Array.isArray(data.products)) {
-          console.warn("⚠️ Invalid products data format:", data);
+        if (!Array.isArray(data.products)) {
+          console.warn("⚠️ Invalid products data format (not array):", data);
           return { products: [], error: "Geçersiz veri formatı" };
         }
         
+        console.log(`✅ Successfully loaded ${data.products.length} products`);
         return { products: data.products, error: data.error };
       } catch (error) {
         clearTimeout(timeoutId);
-        console.error("❌ Products fetch error:", error);
+        console.error("❌ Products fetch error:", {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
         
         // Hata durumunda error bilgisi ile döndür
         return { 
