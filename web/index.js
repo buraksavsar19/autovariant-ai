@@ -602,48 +602,87 @@ app.post(
 
 app.use(express.json());
 
-// CORS headers - Tüm API endpoint'leri için
+// ============================================================================
+// SCENARIO 1: CORS Headers - Tüm API endpoint'leri için
+// ============================================================================
 app.use("/api/*", (req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  // CORS headers - Tüm origin'lere izin ver (production'da güvenlik için kısıtlanabilir)
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.setHeader('Access-Control-Max-Age', '86400'); // 24 saat
   
-  // Preflight request'i handle et
+  // Preflight request'i handle et - HEMEN response döndür
   if (req.method === 'OPTIONS') {
+    console.log("✅ CORS preflight request handled");
     return res.status(200).end();
   }
   
   next();
 });
 
-// /api/products/list endpoint'ini middleware'den ÖNCE tanımla
-// Bu endpoint'i önce tanımla ki static file serving'den önce çalışsın
-app.get("/api/products/list", shopify.validateAuthenticatedSession(), async (req, res) => {
+// ============================================================================
+// SCENARIO 2: /api/products/list endpoint - EN ÖNCE tanımla (static file serving'den önce)
+// ============================================================================
+// Bu endpoint'i EN BAŞTA tanımla ki:
+// 1. Static file serving'den önce çalışsın
+// 2. Diğer middleware'lerden önce çalışsın
+// 3. Route matching'de öncelikli olsun
+app.get("/api/products/list", async (req, res, next) => {
   const startTime = Date.now();
   
-  // Hemen response başlat - timeout'u önlemek için
-  res.setHeader('Content-Type', 'application/json');
-  
-  console.log("🔍 /api/products/list endpoint called");
+  console.log("🔍 /api/products/list endpoint HIT - Request received");
+  console.log("🔍 Request method:", req.method);
+  console.log("🔍 Request URL:", req.url);
   console.log("🔍 Request headers:", {
-    cookie: req.headers.cookie ? "present" : "missing",
+    cookie: req.headers.cookie ? "present (" + req.headers.cookie.substring(0, 50) + ")" : "missing",
     authorization: req.headers.authorization ? "present" : "missing",
     host: req.headers.host,
     referer: req.headers.referer,
-    origin: req.headers.origin
+    origin: req.headers.origin,
+    'user-agent': req.headers['user-agent']?.substring(0, 50)
   });
   
+  // Hemen response headers set et - timeout'u önlemek için
+  res.setHeader('Content-Type', 'application/json');
+  
+  // validateAuthenticatedSession middleware'ini manuel çağır
+  // Çünkü middleware chain'de sorun olabilir
   try {
-    // Session kontrolü - validateAuthenticatedSession middleware'i session'ı set etmiş olmalı
+    await new Promise((resolve, reject) => {
+      // validateAuthenticatedSession middleware'ini çağır
+      const middleware = shopify.validateAuthenticatedSession();
+      middleware(req, res, (err) => {
+        if (err) {
+          console.error("❌ validateAuthenticatedSession middleware error:", err);
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+    
+    // Middleware'den sonra session kontrolü
     if (!res.locals.shopify || !res.locals.shopify.session) {
-      console.error("❌ Session bulunamadı - validateAuthenticatedSession middleware'i çalışmamış");
-      console.error("Full res.locals:", Object.keys(res.locals));
+      console.error("❌ Session bulunamadı after validateAuthenticatedSession");
+      console.error("Full res.locals keys:", Object.keys(res.locals));
       return res.status(200).send({ 
         products: [],
-        error: "Authentication required - please reinstall the app"
+        error: "Authentication required - please reinstall the app",
+        debug: {
+          hasShopify: !!res.locals.shopify,
+          hasSession: !!(res.locals.shopify && res.locals.shopify.session)
+        }
       });
     }
+    
+    console.log("✅ Session found:", res.locals.shopify.session.shop);
     
     // Session var, direkt devam et
     await handleProductsList(req, res, startTime);
@@ -653,7 +692,7 @@ app.get("/api/products/list", shopify.validateAuthenticatedSession(), async (req
     console.error(`❌ [${shop}] Ürünler listelenirken hata (${duration}ms):`, error);
     console.error("Error details:", {
       message: error.message,
-      stack: error.stack,
+      stack: error.stack?.substring(0, 500),
       name: error.name,
       shop: shop
     });
@@ -662,7 +701,11 @@ app.get("/api/products/list", shopify.validateAuthenticatedSession(), async (req
     res.status(200).send({ 
       products: [],
       error: error.message || "Ürünler yüklenirken bir hata oluştu",
-      errorType: error.name || "UnknownError"
+      errorType: error.name || "UnknownError",
+      debug: {
+        duration: duration,
+        shop: shop
+      }
     });
   }
 });
@@ -783,10 +826,12 @@ function isTemplateProduct(title) {
 
 // Endpoint yukarıda tanımlandı, burada sadece handleProductsList fonksiyonu var
 
-// Products list logic'i ayrı fonksiyona çıkar
+// ============================================================================
+// SCENARIO 3: Products list logic - GraphQL timeout ve error handling
+// ============================================================================
 async function handleProductsList(req, res, startTime) {
   // Session kontrolü - detaylı log
-  console.log("🔍 Session check:", {
+  console.log("🔍 handleProductsList - Session check:", {
     hasShopify: !!res.locals.shopify,
     hasSession: !!(res.locals.shopify && res.locals.shopify.session),
     shop: res.locals.shopify?.session?.shop,
@@ -794,22 +839,29 @@ async function handleProductsList(req, res, startTime) {
   });
   
   if (!res.locals.shopify || !res.locals.shopify.session) {
-    throw new Error("Session bulunamadı");
+    throw new Error("Session bulunamadı in handleProductsList");
   }
 
   const shop = res.locals.shopify.session.shop;
   console.log(`📦 Fetching products for shop: ${shop}`);
 
+  try {
     const client = new shopify.api.clients.Graphql({
       session: res.locals.shopify.session,
     });
 
-    // Timeout (5 saniye - GraphQL için yeterli)
+    // SCENARIO 4: GraphQL timeout - 8 saniye (daha uzun timeout)
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("GraphQL request timeout after 5s")), 5000);
+      setTimeout(() => {
+        console.warn("⏱️ GraphQL request timeout after 8s");
+        reject(new Error("GraphQL request timeout after 8s"));
+      }, 8000);
     });
 
-    // Optimize edilmiş GraphQL sorgusu - Sadece ilk 50 ürün
+    // SCENARIO 5: GraphQL query - Optimize edilmiş, error handling ile
+    console.log("🔍 Starting GraphQL query...");
+    const graphqlStartTime = Date.now();
+    
     const productsData = await Promise.race([
       client.request(`
         query getProducts {
@@ -830,9 +882,19 @@ async function handleProductsList(req, res, startTime) {
             }
           }
         }
-      `),
+      `).catch((graphqlError) => {
+        console.error("❌ GraphQL request error:", {
+          message: graphqlError.message,
+          name: graphqlError.name,
+          stack: graphqlError.stack?.substring(0, 500)
+        });
+        throw graphqlError;
+      }),
       timeoutPromise
     ]);
+    
+    const graphqlDuration = Date.now() - graphqlStartTime;
+    console.log(`✅ GraphQL query completed in ${graphqlDuration}ms`);
 
     // GraphQL response'unu güvenli bir şekilde parse et
     console.log("🔍 GraphQL Response structure:", {
@@ -2557,8 +2619,23 @@ app.post("/api/images/upload-to-shopify", upload.array("images", 20), async (req
 });
 
 app.use(shopify.cspHeaders());
-app.use(serveStatic(STATIC_PATH, { index: false }));
+// ============================================================================
+// SCENARIO 6: Static file serving - API route'larından SONRA olmalı
+// ============================================================================
+// Static file serving'i EN SONA koy ki API route'ları öncelikli olsun
+// Ama /api/* route'ları zaten yukarıda tanımlı, bu yüzden sorun olmamalı
+app.use(serveStatic(STATIC_PATH, { 
+  index: false,
+  // API route'larını static file olarak serve etme
+  setHeaders: (res, path) => {
+    // Eğer path /api ile başlıyorsa, static file olarak serve etme
+    if (path.includes('/api/')) {
+      res.setHeader('Cache-Control', 'no-store');
+    }
+  }
+}));
 
+// SCENARIO 7: Catch-all route - EN SONA koy (API route'larından sonra)
 app.use("/*", shopify.ensureInstalledOnShop(), async (_req, res, _next) => {
   return res
     .status(200)

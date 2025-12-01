@@ -568,7 +568,7 @@ export default function VariantCreator() {
   } = useQuery({
     queryKey: ["products", isDemoMode],
     queryFn: async () => {
-      // Production'da full URL kullan
+      // SCENARIO 8: Frontend fetch - Production'da full URL kullan
       const endpoint = isDemoMode 
         ? `${apiBase}/products/list` 
         : (import.meta.env.PROD ? `${window.location.origin}/api/products/list` : "/api/products/list");
@@ -576,22 +576,33 @@ export default function VariantCreator() {
       console.log(`🚀 Starting products fetch to: ${endpoint}`);
       console.log(`🔍 isDemoMode: ${isDemoMode}, apiBase: ${apiBase}, PROD: ${import.meta.env.PROD}`);
       console.log(`🔍 Full URL will be: ${endpoint}`);
+      console.log(`🔍 window.location.origin: ${window.location.origin}`);
       
-      // Timeout ile fetch (10 saniye - GraphQL için yeterli)
+      // SCENARIO 9: Frontend timeout - 15 saniye (daha uzun, GraphQL için)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.warn("⏱️ Fetch timeout after 10s, aborting...");
+        console.warn("⏱️ Fetch timeout after 15s, aborting...");
+        console.warn("⏱️ This might indicate backend is not responding");
         controller.abort();
-      }, 10000);
+      }, 15000); // 15 saniye
       
       try {
         const fetchStartTime = Date.now();
+        console.log(`🔍 Fetch starting at ${new Date().toISOString()}`);
+        
         const response = await fetch(endpoint, {
           signal: controller.signal,
-          credentials: 'include', // Session cookie'lerini gönder
+          credentials: 'include', // SCENARIO 10: Session cookie'lerini gönder
+          method: 'GET',
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            // SCENARIO 11: CORS için gerekli headers
+            'X-Requested-With': 'XMLHttpRequest',
           },
+          // SCENARIO 12: Cache control
+          cache: 'no-cache',
+          mode: 'cors', // CORS mode
         });
         clearTimeout(timeoutId);
         const fetchDuration = Date.now() - fetchStartTime;
