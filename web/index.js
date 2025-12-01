@@ -600,14 +600,16 @@ app.post(
 // If you are adding routes outside of the /api path, remember to
 // also add a proxy rule for them in web/frontend/vite.config.js
 
+app.use(express.json());
+
 // Demo mode'da authentication'ı bypass et
 if (DEMO_MODE) {
   app.use("/api/demo/*", demoModeMiddleware);
 } else {
+  // Diğer API endpoint'leri için validateAuthenticatedSession kullan
+  // /api/products/list endpoint'i kendi middleware'ini kullanıyor (endpoint tanımında)
   app.use("/api/*", shopify.validateAuthenticatedSession());
 }
-
-app.use(express.json());
 
 // Billing endpoints
 app.get("/api/billing/status", async (_req, res) => {
@@ -715,8 +717,9 @@ function isTemplateProduct(title) {
   );
 }
 
-// Ürünleri listeleme endpoint'i (template ürünleri hariç) - Optimize edilmiş
-app.get("/api/products/list", async (req, res) => {
+// Ürünleri listeleme endpoint'i - validateAuthenticatedSession'dan ÖNCE tanımlanmalı
+// Bu endpoint'i middleware'den önce tanımla ki session kontrolü endpoint içinde yapılsın
+app.get("/api/products/list", shopify.validateAuthenticatedSession(), async (req, res) => {
   const startTime = Date.now();
   
   console.log("🔍 /api/products/list endpoint called");
