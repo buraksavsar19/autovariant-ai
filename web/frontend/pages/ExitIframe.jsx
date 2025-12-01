@@ -1,14 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Banner, Layout, Page } from "@shopify/polaris";
 
 export default function ExitIframe() {
   const { search } = useLocation();
   const navigate = useNavigate();
-  const [showWarning, setShowWarning] = useState(false);
 
   useEffect(() => {
-    // redirectUri yoksa veya search parametresi yoksa, direkt root'a yönlendir
+    // redirectUri yoksa veya search parametresi yoksa, direkt root'a yönlendir (hiçbir şey gösterme)
     if (!search) {
       navigate("/", { replace: true });
       return;
@@ -18,7 +16,7 @@ export default function ExitIframe() {
     const redirectUri = params.get("redirectUri");
     
     if (!redirectUri) {
-      // redirectUri yoksa, app'in root URL'ine yönlendir
+      // redirectUri yoksa, app'in root URL'ine yönlendir (hiçbir şey gösterme)
       navigate("/", { replace: true });
       return;
     }
@@ -36,33 +34,15 @@ export default function ExitIframe() {
         // Shopify domain'ine yönlendir
         window.open(url.toString(), "_top");
       } else {
-        // Geçersiz external URL - uyarı göster
-        setShowWarning(true);
+        // Geçersiz external URL - root'a yönlendir (uyarı gösterme)
+        navigate("/", { replace: true });
       }
     } catch (error) {
-      // Geçersiz URL, app'in root URL'ine yönlendir
-      console.error("Invalid redirectUri:", error);
+      // Geçersiz URL, app'in root URL'ine yönlendir (hiçbir şey gösterme)
       navigate("/", { replace: true });
     }
   }, [search, navigate]);
 
-  // Sadece geçersiz external URL için uyarı göster
-  if (showWarning) {
-    return (
-      <Page narrowWidth>
-        <Layout>
-          <Layout.Section>
-            <div style={{ marginTop: "100px" }}>
-              <Banner title="Redirecting outside of Shopify" status="warning">
-                Apps can only use /exitiframe to reach Shopify or the app itself.
-              </Banner>
-            </div>
-          </Layout.Section>
-        </Layout>
-      </Page>
-    );
-  }
-
-  // Yönlendirme yapılıyorsa hiçbir şey gösterme
+  // Hiçbir şey gösterme - sadece yönlendirme yap
   return null;
 }

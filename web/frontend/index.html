@@ -22,22 +22,50 @@
     <!-- SendBeacon error handler - En erken aşamada çalışmalı -->
     <script>
       (function() {
-        // Console.error'u override et (SendBeacon hatalarını gizle)
+        // Tüm console metodlarını override et (SendBeacon hatalarını gizle)
         const originalConsoleError = console.error;
+        const originalConsoleLog = console.log;
+        const originalConsoleWarn = console.warn;
+        
+        function shouldFilterMessage(args) {
+          const message = args.map(arg => {
+            if (typeof arg === 'object') {
+              try {
+                return JSON.stringify(arg);
+              } catch (e) {
+                return String(arg);
+              }
+            }
+            return String(arg);
+          }).join(' ');
+          return message.includes('SendBeacon') || message.includes('sendBeacon');
+        }
+
         console.error = function(...args) {
-          const message = args.map(arg => 
-            typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
-          ).join(' ');
-          if (message.includes('SendBeacon')) {
+          if (shouldFilterMessage(args)) {
             return; // SendBeacon hatalarını gizle
           }
           originalConsoleError.apply(console, args);
         };
 
-        // Error event listener (capture phase)
+        console.log = function(...args) {
+          if (shouldFilterMessage(args)) {
+            return; // SendBeacon loglarını gizle
+          }
+          originalConsoleLog.apply(console, args);
+        };
+
+        console.warn = function(...args) {
+          if (shouldFilterMessage(args)) {
+            return; // SendBeacon uyarılarını gizle
+          }
+          originalConsoleWarn.apply(console, args);
+        };
+
+        // Error event listener (capture phase - en erken)
         window.addEventListener('error', function(event) {
-          const errorMessage = event.message || (event.error && event.error.message) || '';
-          if (errorMessage.includes('SendBeacon')) {
+          const errorMessage = event.message || (event.error && event.error.message) || String(event.error || '');
+          if (errorMessage.includes('SendBeacon') || errorMessage.includes('sendBeacon')) {
             event.preventDefault();
             event.stopPropagation();
             event.stopImmediatePropagation();
@@ -48,11 +76,11 @@
         // Unhandled promise rejection
         window.addEventListener('unhandledrejection', function(event) {
           const errorMessage = event.reason?.message || String(event.reason || '');
-          if (errorMessage.includes('SendBeacon')) {
+          if (errorMessage.includes('SendBeacon') || errorMessage.includes('sendBeacon')) {
             event.preventDefault();
             return false;
           }
-        });
+        }, true);
       })();
     </script>
     
