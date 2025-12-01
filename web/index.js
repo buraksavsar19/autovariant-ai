@@ -719,22 +719,34 @@ function isTemplateProduct(title) {
 app.get("/api/products/list", async (req, res) => {
   const startTime = Date.now();
   
+  console.log("🔍 /api/products/list endpoint called");
+  console.log("🔍 Request headers:", {
+    cookie: req.headers.cookie ? "present" : "missing",
+    authorization: req.headers.authorization ? "present" : "missing",
+    host: req.headers.host,
+    referer: req.headers.referer
+  });
+  
   try {
-    // Session kontrolü
+    // Session kontrolü - detaylı log
+    console.log("🔍 Session check:", {
+      hasShopify: !!res.locals.shopify,
+      hasSession: !!(res.locals.shopify && res.locals.shopify.session),
+      shop: res.locals.shopify?.session?.shop,
+      sessionId: res.locals.shopify?.session?.id
+    });
+    
     if (!res.locals.shopify || !res.locals.shopify.session) {
       console.error("❌ Session bulunamadı - authentication gerekli");
-      console.error("Session check:", {
-        hasShopify: !!res.locals.shopify,
-        hasSession: !!(res.locals.shopify && res.locals.shopify.session),
-        shop: res.locals.shopify?.session?.shop
-      });
+      console.error("Full res.locals:", Object.keys(res.locals));
       return res.status(200).send({ 
         products: [],
         error: "Authentication required - please reinstall the app"
       });
     }
 
-    console.log(`📦 Fetching products for shop: ${res.locals.shopify.session.shop}`);
+    const shop = res.locals.shopify.session.shop;
+    console.log(`📦 Fetching products for shop: ${shop}`);
 
     const client = new shopify.api.clients.Graphql({
       session: res.locals.shopify.session,
@@ -770,18 +782,47 @@ app.get("/api/products/list", async (req, res) => {
       timeoutPromise
     ]);
 
-    // Tüm ürünleri al (template filtreleme kaldırıldı - kullanıcı kendi ürünlerini görmeli)
-    const allProducts = productsData.data.products.edges.map((edge) => {
-      const product = edge.node;
-      return {
-        id: product.id,
-        title: product.title,
-        handle: product.handle,
-        variantsCount: product.variantsCount?.count || 0,
-        options: product.options || [],
-        hasExistingVariants: (product.variantsCount?.count || 0) > 1,
-      };
+    // GraphQL response'unu güvenli bir şekilde parse et
+    console.log("🔍 GraphQL Response structure:", {
+      hasData: !!productsData.data,
+      hasProducts: !!(productsData.data && productsData.data.products),
+      hasEdges: !!(productsData.data && productsData.data.products && productsData.data.products.edges),
+      edgesLength: productsData.data?.products?.edges?.length || 0,
+      fullResponse: JSON.stringify(productsData).substring(0, 500)
     });
+
+    // Response formatını kontrol et
+    if (!productsData || !productsData.data) {
+      throw new Error("GraphQL response has no data field");
+    }
+
+    if (!productsData.data.products) {
+      throw new Error("GraphQL response has no products field");
+    }
+
+    if (!productsData.data.products.edges) {
+      console.warn("⚠️ No edges in products response, returning empty array");
+      return res.status(200).send({ products: [] });
+    }
+
+    // Tüm ürünleri al (template filtreleme kaldırıldı - kullanıcı kendi ürünlerini görmeli)
+    const allProducts = productsData.data.products.edges
+      .map((edge) => {
+        if (!edge || !edge.node) {
+          console.warn("⚠️ Invalid edge structure:", edge);
+          return null;
+        }
+        const product = edge.node;
+        return {
+          id: product.id,
+          title: product.title,
+          handle: product.handle,
+          variantsCount: product.variantsCount?.count || 0,
+          options: product.options || [],
+          hasExistingVariants: (product.variantsCount?.count || 0) > 1,
+        };
+      })
+      .filter(Boolean); // null'ları filtrele
 
     const duration = Date.now() - startTime;
     console.log(`✅ Products loaded in ${duration}ms, total: ${allProducts.length}`);
