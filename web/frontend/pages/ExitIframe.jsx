@@ -17,7 +17,7 @@ export default function ExitIframe() {
       const url = new URL(decodeURIComponent(redirectUri));
 
       if (
-        [location.hostname, "admin.shopify.com"].includes(url.hostname) ||
+        [window.location.hostname, "admin.shopify.com"].includes(url.hostname) ||
         url.hostname.endsWith(".myshopify.com")
       ) {
         window.open(url, "_top");
