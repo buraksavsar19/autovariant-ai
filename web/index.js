@@ -602,6 +602,21 @@ app.post(
 
 app.use(express.json());
 
+// CORS headers - Tüm API endpoint'leri için
+app.use("/api/*", (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  
+  // Preflight request'i handle et
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+});
+
 // /api/products/list endpoint'ini middleware'den ÖNCE tanımla
 // Bu endpoint'i önce tanımla ki static file serving'den önce çalışsın
 app.get("/api/products/list", shopify.validateAuthenticatedSession(), async (req, res) => {
