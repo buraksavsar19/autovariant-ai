@@ -608,10 +608,13 @@ app.get("/api/test", (req, res) => {
   res.status(200).json({ message: "Backend is working!", timestamp: new Date().toISOString() });
 });
 
-app.use(express.json());
+// ============================================================================
+// CRITICAL: /api/products/list endpoint - EN BAŞTA (test endpoint'inden sonra)
+// ============================================================================
+// Bu endpoint'i EN BAŞTA tanımla ki hiçbir middleware intercept etmesin
 
 // ============================================================================
-// CRITICAL: /api/products/list endpoint - EN ÖNCE tanımla (express.json'dan SONRA ama diğer middleware'lerden ÖNCE)
+// CRITICAL: /api/products/list endpoint - EN BAŞTA (express.json'dan ÖNCE)
 // ============================================================================
 // Bu endpoint'i EN BAŞTA tanımla ki hiçbir middleware intercept etmesin
 app.get("/api/products/list", async (req, res) => {
@@ -729,6 +732,8 @@ app.get("/api/products/list", async (req, res) => {
     });
   }
 });
+
+app.use(express.json());
 
 // ============================================================================
 // SCENARIO 1: CORS Headers - Tüm API endpoint'leri için
