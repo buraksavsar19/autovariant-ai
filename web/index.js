@@ -602,12 +602,61 @@ app.post(
 
 app.use(express.json());
 
+// /api/products/list endpoint'ini middleware'den ÖNCE tanımla
+// Bu endpoint'i önce tanımla ki static file serving'den önce çalışsın
+app.get("/api/products/list", shopify.validateAuthenticatedSession(), async (req, res) => {
+  const startTime = Date.now();
+  
+  // Hemen response başlat - timeout'u önlemek için
+  res.setHeader('Content-Type', 'application/json');
+  
+  console.log("🔍 /api/products/list endpoint called");
+  console.log("🔍 Request headers:", {
+    cookie: req.headers.cookie ? "present" : "missing",
+    authorization: req.headers.authorization ? "present" : "missing",
+    host: req.headers.host,
+    referer: req.headers.referer,
+    origin: req.headers.origin
+  });
+  
+  try {
+    // Session kontrolü - validateAuthenticatedSession middleware'i session'ı set etmiş olmalı
+    if (!res.locals.shopify || !res.locals.shopify.session) {
+      console.error("❌ Session bulunamadı - validateAuthenticatedSession middleware'i çalışmamış");
+      console.error("Full res.locals:", Object.keys(res.locals));
+      return res.status(200).send({ 
+        products: [],
+        error: "Authentication required - please reinstall the app"
+      });
+    }
+    
+    // Session var, direkt devam et
+    await handleProductsList(req, res, startTime);
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const shop = res.locals.shopify?.session?.shop || 'Unknown';
+    console.error(`❌ [${shop}] Ürünler listelenirken hata (${duration}ms):`, error);
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      shop: shop
+    });
+    
+    // Hata durumunda detaylı bilgi döndür - her zaman 200 döndür ki frontend takılı kalmasın
+    res.status(200).send({ 
+      products: [],
+      error: error.message || "Ürünler yüklenirken bir hata oluştu",
+      errorType: error.name || "UnknownError"
+    });
+  }
+});
+
 // Demo mode'da authentication'ı bypass et
 if (DEMO_MODE) {
   app.use("/api/demo/*", demoModeMiddleware);
 } else {
   // Diğer API endpoint'leri için validateAuthenticatedSession kullan
-  // /api/products/list endpoint'i kendi middleware'ini kullanıyor (endpoint tanımında)
   app.use("/api/*", shopify.validateAuthenticatedSession());
 }
 
@@ -717,80 +766,7 @@ function isTemplateProduct(title) {
   );
 }
 
-// Ürünleri listeleme endpoint'i - validateAuthenticatedSession'dan ÖNCE tanımlanmalı
-// Bu endpoint'i middleware'den önce tanımla ki session kontrolü endpoint içinde yapılsın
-app.get("/api/products/list", async (req, res) => {
-  const startTime = Date.now();
-  
-  // Hemen response başlat - timeout'u önlemek için
-  res.setHeader('Content-Type', 'application/json');
-  
-  console.log("🔍 /api/products/list endpoint called");
-  console.log("🔍 Request headers:", {
-    cookie: req.headers.cookie ? "present" : "missing",
-    authorization: req.headers.authorization ? "present" : "missing",
-    host: req.headers.host,
-    referer: req.headers.referer
-  });
-  
-  try {
-    // Session kontrolü - validateAuthenticatedSession middleware'i session'ı set etmiş olmalı
-    // Ama eğer set etmemişse, manuel kontrol yap
-    if (!res.locals.shopify || !res.locals.shopify.session) {
-      console.error("❌ Session bulunamadı - validateAuthenticatedSession middleware'i çalışmamış olabilir");
-      console.error("Full res.locals:", Object.keys(res.locals));
-      
-      // validateAuthenticatedSession middleware'ini manuel çağır
-      return new Promise((resolve) => {
-        shopify.validateAuthenticatedSession()(req, res, async () => {
-          // Middleware'den sonra tekrar kontrol et
-          if (!res.locals.shopify || !res.locals.shopify.session) {
-            console.error("❌ Session hala bulunamadı - authentication gerekli");
-            res.status(200).send({ 
-              products: [],
-              error: "Authentication required - please reinstall the app"
-            });
-            resolve();
-            return;
-          }
-          
-          // Session var, devam et
-          try {
-            await handleProductsList(req, res, startTime);
-            resolve();
-          } catch (error) {
-            console.error("❌ handleProductsList error:", error);
-            res.status(200).send({ 
-              products: [],
-              error: error.message || "Ürünler yüklenirken bir hata oluştu"
-            });
-            resolve();
-          }
-        });
-      });
-    }
-    
-    // Session var, direkt devam et
-    await handleProductsList(req, res, startTime);
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const shop = res.locals.shopify?.session?.shop || 'Unknown';
-    console.error(`❌ [${shop}] Ürünler listelenirken hata (${duration}ms):`, error);
-    console.error("Error details:", {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-      shop: shop
-    });
-    
-    // Hata durumunda detaylı bilgi döndür - her zaman 200 döndür ki frontend takılı kalmasın
-    res.status(200).send({ 
-      products: [],
-      error: error.message || "Ürünler yüklenirken bir hata oluştu",
-      errorType: error.name || "UnknownError"
-    });
-  }
-});
+// Endpoint yukarıda tanımlandı, burada sadece handleProductsList fonksiyonu var
 
 // Products list logic'i ayrı fonksiyona çıkar
 async function handleProductsList(req, res, startTime) {
