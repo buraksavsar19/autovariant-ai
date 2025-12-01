@@ -32,29 +32,6 @@ const STATIC_PATH =
 
 const app = express();
 
-// ============================================================================
-// CRITICAL: /api/products/list endpoint - EN EN BAŞTA tanımla
-// ============================================================================
-// Bu endpoint'i app oluşturulur oluşturulmaz tanımla
-// Hiçbir middleware'den önce, hiçbir şeyden önce
-app.get("/api/products/list", async (req, res) => {
-  const startTime = Date.now();
-  
-  // HEMEN log - request geldiğini görmek için
-  console.log("✅✅✅ /api/products/list endpoint HIT - Request received ✅✅✅");
-  console.log("🔍 Request method:", req.method);
-  console.log("🔍 Request URL:", req.url);
-  console.log("🔍 Request path:", req.path);
-  console.log("🔍 Request query:", req.query);
-  console.log("🔍 Request headers cookie:", req.headers.cookie ? "present" : "missing");
-  
-  // Hemen response headers set et - timeout'u önlemek için
-  res.setHeader('Content-Type', 'application/json');
-  
-  // CRITICAL: validateAuthenticatedSession middleware'i redirect yapabilir
-  // Bu yüzden middleware'i bypass edip direkt session'ı yükle
-  try {
-
 // Demo Mode kontrolü
 const DEMO_MODE = process.env.DEMO_MODE === "true" || process.env.DEMO_MODE === "1";
 
@@ -631,8 +608,10 @@ app.get("/api/test", (req, res) => {
   res.status(200).json({ message: "Backend is working!", timestamp: new Date().toISOString() });
 });
 
+app.use(express.json());
+
 // ============================================================================
-// CRITICAL: /api/products/list endpoint - EN ÖNCE tanımla (express.json'dan ÖNCE bile)
+// CRITICAL: /api/products/list endpoint - EN ÖNCE tanımla (express.json'dan SONRA ama diğer middleware'lerden ÖNCE)
 // ============================================================================
 // Bu endpoint'i EN BAŞTA tanımla ki hiçbir middleware intercept etmesin
 app.get("/api/products/list", async (req, res) => {
@@ -733,10 +712,6 @@ app.get("/api/products/list", async (req, res) => {
     });
   }
 });
-
-app.use(express.json());
-
-// Endpoint yukarıda tanımlandı (express.json'dan önce)
 
 // ============================================================================
 // SCENARIO 1: CORS Headers - Tüm API endpoint'leri için
