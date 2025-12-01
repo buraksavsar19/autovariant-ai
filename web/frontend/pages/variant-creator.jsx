@@ -567,11 +567,17 @@ export default function VariantCreator() {
     queryFn: async () => {
       const endpoint = isDemoMode ? `${apiBase}/products/list` : "/api/products/list";
       
-      // Timeout ile fetch (8 saniye - GraphQL için yeterli)
+      console.log(`🚀 Starting products fetch to: ${endpoint}`);
+      
+      // Timeout ile fetch (10 saniye - GraphQL için yeterli)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => {
+        console.warn("⏱️ Fetch timeout after 10s, aborting...");
+        controller.abort();
+      }, 10000);
       
       try {
+        const fetchStartTime = Date.now();
         const response = await fetch(endpoint, {
           signal: controller.signal,
           credentials: 'include', // Session cookie'lerini gönder
@@ -580,6 +586,8 @@ export default function VariantCreator() {
           },
         });
         clearTimeout(timeoutId);
+        const fetchDuration = Date.now() - fetchStartTime;
+        console.log(`⏱️ Fetch completed in ${fetchDuration}ms`);
         
         // Response'u parse etmeden önce status kontrolü
         if (!response.ok) {
