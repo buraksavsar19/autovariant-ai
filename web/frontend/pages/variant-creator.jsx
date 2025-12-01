@@ -568,6 +568,8 @@ export default function VariantCreator() {
       const endpoint = isDemoMode ? `${apiBase}/products/list` : "/api/products/list";
       
       console.log(`🚀 Starting products fetch to: ${endpoint}`);
+      console.log(`🔍 isDemoMode: ${isDemoMode}, apiBase: ${apiBase}`);
+      console.log(`🔍 Full URL will be: ${endpoint}`);
       
       // Timeout ile fetch (10 saniye - GraphQL için yeterli)
       const controller = new AbortController();
