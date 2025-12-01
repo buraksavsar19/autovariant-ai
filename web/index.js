@@ -652,9 +652,15 @@ app.get("/api/products/list", async (req, res) => {
     // Middleware'den sonra session kontrolü
     if (!res.locals.shopify || !res.locals.shopify.session) {
       console.error("❌ Session bulunamadı after validateAuthenticatedSession");
+      console.error("🔍 res.locals keys:", Object.keys(res.locals));
+      // Session yoksa bile boş array döndür - frontend takılı kalmasın
       return res.status(200).send({ 
         products: [],
-        error: "Authentication required - please reinstall the app"
+        error: "Authentication required - please reinstall the app",
+        debug: {
+          hasShopify: !!res.locals.shopify,
+          hasSession: !!(res.locals.shopify && res.locals.shopify.session)
+        }
       });
     }
     
@@ -662,9 +668,11 @@ app.get("/api/products/list", async (req, res) => {
     await handleProductsList(req, res, startTime);
   } catch (error) {
     console.error(`❌ Error in /api/products/list:`, error);
+    console.error("Error stack:", error.stack?.substring(0, 500));
     res.status(200).send({ 
       products: [],
-      error: error.message || "Ürünler yüklenirken bir hata oluştu"
+      error: error.message || "Ürünler yüklenirken bir hata oluştu",
+      errorType: error.name
     });
   }
 });
