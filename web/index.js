@@ -636,10 +636,6 @@ app.get("/api/products/list", async (req, res) => {
   // Hemen response headers set et - timeout'u önlemek için
   res.setHeader('Content-Type', 'application/json');
   
-  // CRITICAL: HEMEN bir test response gönder - backend'in çalıştığını doğrula
-  // Eğer bu bile gelmiyorsa, sorun Railway routing'de
-  // Önce basit bir response gönder, sonra session kontrolü yap
-  
   // Shop bilgisini query'den, header'dan veya cookie'den al
   let shop = req.query.shop || req.headers['x-shopify-shop-domain'];
   
@@ -670,28 +666,17 @@ app.get("/api/products/list", async (req, res) => {
   
   if (!shop) {
     console.error("❌ Shop bilgisi bulunamadı - returning empty array immediately");
-    console.error("🔍 Query:", req.query);
-    console.error("🔍 Headers:", {
-      referer: req.headers.referer,
-      cookie: req.headers.cookie ? "present" : "missing"
-    });
     // Shop yoksa bile HEMEN boş array döndür - frontend takılı kalmasın
     return res.status(200).json({ 
       products: [],
-      error: "Shop information not found - please reinstall the app",
-      debug: {
-        timestamp: new Date().toISOString(),
-        endpoint: "/api/products/list"
-      }
+      error: "Shop information not found - please reinstall the app"
     });
   }
   
   console.log("🔍 Shop found:", shop);
   
   // Session'ı database'den yükle
-  // Shopify session ID formatı: shopify_app_session_{shop}
   try {
-    // Session ID'yi doğru formatta oluştur
     const sessionId = `shopify_app_session_${shop}`;
     console.log("🔍 Loading session with ID:", sessionId);
     
@@ -699,16 +684,10 @@ app.get("/api/products/list", async (req, res) => {
     
     if (!session) {
       console.error("❌ Session database'de bulunamadı for shop:", shop);
-      console.error("🔍 Tried session ID:", sessionId);
-      // Session yoksa bile HEMEN boş array döndür - frontend takılı kalmasın
+      // Session yoksa bile HEMEN boş array döndür
       return res.status(200).json({ 
         products: [],
-        error: "Session not found - please reinstall the app",
-        debug: {
-          shop: shop,
-          sessionId: sessionId,
-          timestamp: new Date().toISOString()
-        }
+        error: "Session not found - please reinstall the app"
       });
     }
     
@@ -720,15 +699,10 @@ app.get("/api/products/list", async (req, res) => {
     await handleProductsList(req, res, startTime);
   } catch (sessionError) {
     console.error("❌ Session load error:", sessionError);
-    console.error("Error stack:", sessionError.stack?.substring(0, 500));
     // Hata durumunda bile HEMEN response döndür
     return res.status(200).json({ 
       products: [],
-      error: "Session error - please reinstall the app",
-      debug: {
-        error: sessionError.message,
-        timestamp: new Date().toISOString()
-      }
+      error: "Session error - please reinstall the app"
     });
   }
 });
