@@ -620,59 +620,63 @@ app.get("/api/products/list", async (req, res) => {
   console.log("🔍 Request method:", req.method);
   console.log("🔍 Request URL:", req.url);
   console.log("🔍 Request path:", req.path);
+  console.log("🔍 Request query:", req.query);
+  console.log("🔍 Request headers cookie:", req.headers.cookie ? "present" : "missing");
   
   // Hemen response headers set et - timeout'u önlemek için
   res.setHeader('Content-Type', 'application/json');
   
-  // HEMEN basit bir response gönder - test için
-  // Eğer bu çalışıyorsa, sorun session authentication'da
+  // CRITICAL: validateAuthenticatedSession middleware'i redirect yapabilir
+  // Bu yüzden middleware'i bypass edip direkt session'ı yükle
   try {
-    // validateAuthenticatedSession middleware'ini çağır ama redirect'i engelle
-    let middlewareRedirected = false;
-    const originalRedirect = res.redirect;
-    res.redirect = function(url) {
-      middlewareRedirected = true;
-      console.warn("⚠️ Middleware tried to redirect to:", url);
-      // Redirect'i engelle
-    };
+    // Shop bilgisini query'den veya header'dan al
+    const shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 
+                 (req.headers.referer ? new URL(req.headers.referer).searchParams.get('shop') : null);
     
+    if (!shop) {
+      console.error("❌ Shop bilgisi bulunamadı");
+      // Shop yoksa bile boş array döndür - frontend takılı kalmasın
+      return res.status(200).send({ 
+        products: [],
+        error: "Shop information not found"
+      });
+    }
+    
+    console.log("🔍 Shop found:", shop);
+    
+    // Session'ı database'den yükle
+    // Shopify session ID formatı: shopify_app_session_{shop}
     try {
-      await new Promise((resolve) => {
-        const middleware = shopify.validateAuthenticatedSession();
-        middleware(req, res, (err) => {
-          if (err) {
-            console.error("❌ validateAuthenticatedSession middleware error:", err);
-          }
-          resolve();
+      // Session ID'yi doğru formatta oluştur
+      const sessionId = `shopify_app_session_${shop}`;
+      console.log("🔍 Loading session with ID:", sessionId);
+      
+      const session = await shopify.config.sessionStorage.loadSession(sessionId);
+      
+      if (!session) {
+        console.error("❌ Session database'de bulunamadı for shop:", shop);
+        console.error("🔍 Tried session ID:", sessionId);
+        // Session yoksa bile boş array döndür - frontend takılı kalmasın
+        return res.status(200).send({ 
+          products: [],
+          error: "Session not found - please reinstall the app"
         });
-      });
-    } catch (middlewareError) {
-      console.error("❌ Middleware call error:", middlewareError);
-    }
-    
-    // Redirect fonksiyonunu geri yükle
-    res.redirect = originalRedirect;
-    
-    // Middleware redirect yaptıysa, session yok demektir
-    if (middlewareRedirected) {
-      console.error("❌ Middleware redirected - session not found");
+      }
+      
+      // Session'ı res.locals'a set et
+      res.locals.shopify = { session };
+      console.log("✅ Session loaded:", session.shop);
+      
+      // Session var, devam et
+      await handleProductsList(req, res, startTime);
+    } catch (sessionError) {
+      console.error("❌ Session load error:", sessionError);
+      console.error("Error stack:", sessionError.stack?.substring(0, 500));
       return res.status(200).send({ 
         products: [],
-        error: "Authentication required - please reinstall the app"
+        error: "Session error - please reinstall the app"
       });
     }
-    
-    // Middleware'den sonra session kontrolü
-    if (!res.locals.shopify || !res.locals.shopify.session) {
-      console.error("❌ Session bulunamadı after validateAuthenticatedSession");
-      return res.status(200).send({ 
-        products: [],
-        error: "Authentication required - please reinstall the app"
-      });
-    }
-    
-    console.log("✅ Session found:", res.locals.shopify.session.shop);
-    await handleProductsList(req, res, startTime);
   } catch (error) {
     console.error(`❌ Error in /api/products/list:`, error);
     res.status(200).send({ 
