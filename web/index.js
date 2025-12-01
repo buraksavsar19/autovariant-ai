@@ -600,6 +600,14 @@ app.post(
 // If you are adding routes outside of the /api path, remember to
 // also add a proxy rule for them in web/frontend/vite.config.js
 
+// ============================================================================
+// TEST ENDPOINT - Backend'in çalışıp çalışmadığını test et
+// ============================================================================
+app.get("/api/test", (req, res) => {
+  console.log("✅✅✅ TEST ENDPOINT HIT ✅✅✅");
+  res.status(200).json({ message: "Backend is working!", timestamp: new Date().toISOString() });
+});
+
 app.use(express.json());
 
 // ============================================================================
@@ -615,27 +623,29 @@ app.get("/api/products/list", async (req, res) => {
   console.log("🔍 Request method:", req.method);
   console.log("🔍 Request URL:", req.url);
   console.log("🔍 Request path:", req.path);
-  console.log("🔍 Request headers:", {
-    cookie: req.headers.cookie ? "present (" + req.headers.cookie.substring(0, 50) + ")" : "missing",
+  console.log("🔍 Request IP:", req.ip);
+  console.log("🔍 Request headers:", JSON.stringify({
+    cookie: req.headers.cookie ? "present" : "missing",
     authorization: req.headers.authorization ? "present" : "missing",
     host: req.headers.host,
     referer: req.headers.referer,
-    origin: req.headers.origin,
-    'user-agent': req.headers['user-agent']?.substring(0, 50)
-  });
+    origin: req.headers.origin
+  }));
   
   // Hemen response headers set et - timeout'u önlemek için
   res.setHeader('Content-Type', 'application/json');
   
-  // validateAuthenticatedSession middleware'ini manuel çağır
+  // HEMEN response gönder - test için
+  // Önce basit bir response gönder, sonra session kontrolü yap
   try {
+    // validateAuthenticatedSession middleware'ini manuel çağır
     await new Promise((resolve) => {
       const middleware = shopify.validateAuthenticatedSession();
       middleware(req, res, (err) => {
         if (err) {
           console.error("❌ validateAuthenticatedSession middleware error:", err);
         }
-        resolve(); // Hata olsa bile devam et
+        resolve();
       });
     });
     
