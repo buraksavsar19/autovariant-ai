@@ -555,7 +555,7 @@ export default function VariantCreator() {
     };
   };
 
-  // Ürünleri yükle
+  // Ürünleri yükle - Timeout ve fallback ile
   const {
     data: productsData,
     isLoading: isLoadingProducts,
@@ -565,19 +565,41 @@ export default function VariantCreator() {
     queryKey: ["products", isDemoMode],
     queryFn: async () => {
       const endpoint = isDemoMode ? `${apiBase}/products/list` : "/api/products/list";
-      const response = await fetch(endpoint);
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Ürünler yüklenemedi");
+      
+      // Timeout ile fetch (10 saniye)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      try {
+        const response = await fetch(endpoint, {
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          // Hata durumunda bile boş array döndür, loading state'i bitir
+          return { products: [], error: errorData.error || "Ürünler yüklenemedi" };
+        }
+        
+        const data = await response.json();
+        // Her durumda products array'i döndür
+        return data.products ? data : { products: [] };
+      } catch (error) {
+        clearTimeout(timeoutId);
+        // Timeout veya network hatası durumunda boş array döndür
+        if (error.name === 'AbortError') {
+          console.warn("Ürünler yükleme timeout oldu");
+        } else {
+          console.error("Ürünler yükleme hatası:", error);
+        }
+        return { products: [], error: "Bağlantı hatası. Lütfen tekrar deneyin." };
       }
-      const data = await response.json();
-      // Hata durumunda bile products array'i döndür
-      return data.products ? data : { products: [] };
     },
     refetchOnWindowFocus: false,
-    enabled: true, // Demo mode'da da çalışsın
-    retry: 1, // Sadece 1 kez tekrar dene
-    retryDelay: 1000, // 1 saniye bekle
+    enabled: true,
+    retry: 0, // Retry yapma, hemen boş array döndür
+    staleTime: 30000, // 30 saniye cache
   });
 
   // Prompt'u parse et ve önizleme göster

@@ -721,9 +721,10 @@ app.get("/api/products/list", async (req, res) => {
     // Session kontrolü
     if (!res.locals.shopify || !res.locals.shopify.session) {
       console.error("Session bulunamadı - authentication gerekli");
-      return res.status(401).send({ 
-        error: "Authentication required",
-        products: [] 
+      // 401 yerine 200 döndür, boş array ile - frontend takılı kalmasın
+      return res.status(200).send({ 
+        products: [],
+        error: "Authentication required"
       });
     }
 
@@ -731,26 +732,34 @@ app.get("/api/products/list", async (req, res) => {
       session: res.locals.shopify.session,
     });
 
-    const productsData = await client.request(`
-      query getProducts {
-        products(first: 250) {
-          edges {
-            node {
-              id
-              title
-              handle
-              variantsCount {
-                count
-              }
-              options {
-                name
-                values
+    // Timeout ekle (8 saniye)
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Request timeout")), 8000);
+    });
+
+    const productsData = await Promise.race([
+      client.request(`
+        query getProducts {
+          products(first: 250) {
+            edges {
+              node {
+                id
+                title
+                handle
+                variantsCount {
+                  count
+                }
+                options {
+                  name
+                  values
+                }
               }
             }
           }
         }
-      }
-    `);
+      `),
+      timeoutPromise
+    ]);
 
     // Template ürünlerini filtrele
     const allProducts = productsData.data.products.edges.map((edge) => ({
@@ -770,10 +779,10 @@ app.get("/api/products/list", async (req, res) => {
     res.status(200).send({ products });
   } catch (error) {
     console.error("Ürünler listelenirken hata:", error);
-    // Hata durumunda boş array döndür, böylece frontend takılı kalmaz
-    res.status(500).send({ 
-      error: error.message || "Ürünler yüklenirken bir hata oluştu",
-      products: [] 
+    // Her durumda 200 döndür, boş array ile - frontend takılı kalmasın
+    res.status(200).send({ 
+      products: [],
+      error: error.message || "Ürünler yüklenirken bir hata oluştu"
     });
   }
 });
