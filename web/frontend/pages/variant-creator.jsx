@@ -555,7 +555,7 @@ export default function VariantCreator() {
     };
   };
 
-  // Ürünleri yükle - Timeout ve fallback ile
+  // Ürünleri yükle - Arka planda yükle, kullanıcıyı bloklama
   const {
     data: productsData,
     isLoading: isLoadingProducts,
@@ -566,9 +566,9 @@ export default function VariantCreator() {
     queryFn: async () => {
       const endpoint = isDemoMode ? `${apiBase}/products/list` : "/api/products/list";
       
-      // Timeout ile fetch (10 saniye)
+      // Timeout ile fetch (5 saniye - daha hızlı)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       
       try {
         const response = await fetch(endpoint, {
@@ -577,29 +577,24 @@ export default function VariantCreator() {
         clearTimeout(timeoutId);
         
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          // Hata durumunda bile boş array döndür, loading state'i bitir
-          return { products: [], error: errorData.error || "Ürünler yüklenemedi" };
+          // Hata durumunda bile boş array döndür
+          return { products: [] };
         }
         
         const data = await response.json();
-        // Her durumda products array'i döndür
         return data.products ? data : { products: [] };
       } catch (error) {
         clearTimeout(timeoutId);
-        // Timeout veya network hatası durumunda boş array döndür
-        if (error.name === 'AbortError') {
-          console.warn("Ürünler yükleme timeout oldu");
-        } else {
-          console.error("Ürünler yükleme hatası:", error);
-        }
-        return { products: [], error: "Bağlantı hatası. Lütfen tekrar deneyin." };
+        // Her durumda boş array döndür - loading state'i bitir
+        return { products: [] };
       }
     },
     refetchOnWindowFocus: false,
     enabled: true,
-    retry: 0, // Retry yapma, hemen boş array döndür
-    staleTime: 30000, // 30 saniye cache
+    retry: 0,
+    staleTime: 30000,
+    // İlk yüklemede hemen boş array göster, sonra arka planda yükle
+    initialData: { products: [] },
   });
 
   // Prompt'u parse et ve önizleme göster
@@ -2615,7 +2610,7 @@ export default function VariantCreator() {
                       }
                     }
                   }}
-                  disabled={isCreating || isLoadingProducts}
+                  disabled={isCreating}
                 />
               </Stack>
 
@@ -2626,10 +2621,16 @@ export default function VariantCreator() {
                   value={selectedProductId}
                   onChange={setSelectedProductId}
                   disabled={
-                    isLoadingProducts ||
                     isCreating ||
                     (productsData?.products &&
                       productsData.products.length === 0)
+                  }
+                  helpText={
+                    isLoadingProducts 
+                      ? "Ürünler yükleniyor..." 
+                      : productsData?.products?.length === 0 
+                        ? "Henüz ürün bulunamadı. Lütfen önce ürün ekleyin."
+                        : undefined
                   }
                 />
               ) : (
@@ -2708,60 +2709,8 @@ export default function VariantCreator() {
                 </Card>
               )}
 
-              {productsError && !isLoadingProducts && (
-                <Card sectioned>
-                  <Banner status="critical" title="Ürünler yüklenemedi">
-                    <Text as="p" variant="bodySm">
-                      {productsError.message || "Ürünler yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin veya tekrar deneyin."}
-                    </Text>
-                    <div style={{ marginTop: "12px" }}>
-                      <Button onClick={() => refetchProducts()}>
-                        🔄 Tekrar Dene
-                      </Button>
-                    </div>
-                  </Banner>
-                </Card>
-              )}
-
-              {isLoadingProducts && (
-                <div className="skeleton-container">
-                  <style>{`
-                    @keyframes shimmer {
-                      0% { background-position: -200px 0; }
-                      100% { background-position: calc(200px + 100%) 0; }
-                    }
-                    .skeleton-item {
-                      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-                      background-size: 200px 100%;
-                      animation: shimmer 1.5s ease-in-out infinite;
-                      border-radius: 8px;
-                    }
-                  `}</style>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} style={{ 
-                        display: "flex", 
-                        alignItems: "center", 
-                        gap: "12px",
-                        padding: "12px",
-                        background: "#fff",
-                        borderRadius: "8px",
-                        border: "1px solid #e1e3e5"
-                      }}>
-                        <div className="skeleton-item" style={{ width: "48px", height: "48px", borderRadius: "8px" }} />
-                        <div style={{ flex: 1 }}>
-                          <div className="skeleton-item" style={{ width: "60%", height: "16px", marginBottom: "8px" }} />
-                          <div className="skeleton-item" style={{ width: "40%", height: "12px" }} />
-                        </div>
-                        <div className="skeleton-item" style={{ width: "80px", height: "32px", borderRadius: "6px" }} />
-                      </div>
-                    ))}
-                  </div>
-                  <Text as="p" variant="bodySm" color="subdued" style={{ marginTop: "12px", textAlign: "center" }}>
-                    {texts.info.productsLoading}
-                  </Text>
-                </div>
-              )}
+              {/* Loading state'i kaldır - direkt ürün listesi veya "ürün yok" mesajı göster */}
+              {/* Ürünler arka planda yüklenirken bile app kullanılabilir */}
 
               {/* Template'ler - Kompakt buton olarak */}
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
