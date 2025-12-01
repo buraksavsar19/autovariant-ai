@@ -722,23 +722,30 @@ app.get("/api/products/list", async (req, res) => {
   try {
     // Session kontrolü
     if (!res.locals.shopify || !res.locals.shopify.session) {
-      console.error("Session bulunamadı - authentication gerekli");
+      console.error("❌ Session bulunamadı - authentication gerekli");
+      console.error("Session check:", {
+        hasShopify: !!res.locals.shopify,
+        hasSession: !!(res.locals.shopify && res.locals.shopify.session),
+        shop: res.locals.shopify?.session?.shop
+      });
       return res.status(200).send({ 
         products: [],
-        error: "Authentication required"
+        error: "Authentication required - please reinstall the app"
       });
     }
+
+    console.log(`📦 Fetching products for shop: ${res.locals.shopify.session.shop}`);
 
     const client = new shopify.api.clients.Graphql({
       session: res.locals.shopify.session,
     });
 
-    // Timeout azaltıldı (3 saniye - daha hızlı)
+    // Timeout (5 saniye - GraphQL için yeterli)
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("Request timeout")), 3000);
+      setTimeout(() => reject(new Error("GraphQL request timeout after 5s")), 5000);
     });
 
-    // Optimize edilmiş GraphQL sorgusu - Sadece ilk 50 ürün (daha hızlı)
+    // Optimize edilmiş GraphQL sorgusu - Sadece ilk 50 ürün
     const productsData = await Promise.race([
       client.request(`
         query getProducts {
@@ -763,36 +770,40 @@ app.get("/api/products/list", async (req, res) => {
       timeoutPromise
     ]);
 
-    // Template ürünlerini filtrele - Optimize edilmiş
-    const products = productsData.data.products.edges
-      .map((edge) => {
-        const product = edge.node;
-        // Template kontrolü - erken return
-        if (isTemplateProduct(product.title)) {
-          return null;
-        }
-        return {
-          id: product.id,
-          title: product.title,
-          handle: product.handle,
-          variantsCount: product.variantsCount?.count || 0,
-          options: product.options || [],
-          hasExistingVariants: (product.variantsCount?.count || 0) > 1,
-        };
-      })
-      .filter(Boolean); // null'ları filtrele
+    // Template ürünlerini filtrele
+    const allProducts = productsData.data.products.edges.map((edge) => {
+      const product = edge.node;
+      if (isTemplateProduct(product.title)) {
+        return null;
+      }
+      return {
+        id: product.id,
+        title: product.title,
+        handle: product.handle,
+        variantsCount: product.variantsCount?.count || 0,
+        options: product.options || [],
+        hasExistingVariants: (product.variantsCount?.count || 0) > 1,
+      };
+    }).filter(Boolean);
 
     const duration = Date.now() - startTime;
-    console.log(`Products loaded in ${duration}ms, count: ${products.length}`);
+    console.log(`✅ Products loaded in ${duration}ms, total: ${productsData.data.products.edges.length}, filtered: ${allProducts.length}`);
 
-    res.status(200).send({ products });
+    res.status(200).send({ products: allProducts });
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(`Ürünler listelenirken hata (${duration}ms):`, error);
-    // Her durumda 200 döndür, boş array ile
+    console.error(`❌ Ürünler listelenirken hata (${duration}ms):`, error);
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
+    // Hata durumunda detaylı bilgi döndür
     res.status(200).send({ 
       products: [],
-      error: error.message || "Ürünler yüklenirken bir hata oluştu"
+      error: error.message || "Ürünler yüklenirken bir hata oluştu",
+      errorType: error.name || "UnknownError"
     });
   }
 });

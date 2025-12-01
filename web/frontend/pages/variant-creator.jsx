@@ -566,9 +566,9 @@ export default function VariantCreator() {
     queryFn: async () => {
       const endpoint = isDemoMode ? `${apiBase}/products/list` : "/api/products/list";
       
-      // Timeout ile fetch (5 saniye - daha hızlı)
+      // Timeout ile fetch (8 saniye - GraphQL için yeterli)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       
       try {
         const response = await fetch(endpoint, {
@@ -576,22 +576,41 @@ export default function VariantCreator() {
         });
         clearTimeout(timeoutId);
         
+        const data = await response.json();
+        console.log("📦 Products API response:", {
+          status: response.status,
+          ok: response.ok,
+          productsCount: data.products?.length || 0,
+          error: data.error
+        });
+        
         if (!response.ok) {
-          // Hata durumunda bile boş array döndür
-          return { products: [] };
+          // Hata durumunda error bilgisi ile döndür
+          throw new Error(data.error || `HTTP ${response.status}: Ürünler yüklenemedi`);
         }
         
-        const data = await response.json();
-        return data.products ? data : { products: [] };
+        // products array'i kontrol et
+        if (!data.products || !Array.isArray(data.products)) {
+          console.warn("⚠️ Invalid products data format:", data);
+          return { products: [], error: "Geçersiz veri formatı" };
+        }
+        
+        return { products: data.products, error: data.error };
       } catch (error) {
         clearTimeout(timeoutId);
-        // Her durumda boş array döndür - loading state'i bitir
-        return { products: [] };
+        console.error("❌ Products fetch error:", error);
+        
+        // Hata durumunda error bilgisi ile döndür
+        return { 
+          products: [], 
+          error: error.message || "Bağlantı hatası. Lütfen tekrar deneyin." 
+        };
       }
     },
     refetchOnWindowFocus: false,
     enabled: true,
-    retry: 0,
+    retry: 1, // 1 kez tekrar dene
+    retryDelay: 2000, // 2 saniye bekle
     staleTime: 30000,
     // İlk yüklemede hemen boş array göster, sonra arka planda yükle
     initialData: { products: [] },
@@ -2539,8 +2558,27 @@ export default function VariantCreator() {
                 </Card>
               )}
 
-              {productsData?.products &&
-                productsData.products.length === 0 && (
+              {/* Hata durumunda hata mesajı göster */}
+              {productsData?.error && !isLoadingProducts && (
+                <Card sectioned>
+                  <Banner status="critical" title="Ürünler yüklenemedi">
+                    <Text as="p" variant="bodySm">
+                      {productsData.error}
+                    </Text>
+                    <div style={{ marginTop: "12px" }}>
+                      <Button onClick={() => refetchProducts()}>
+                        🔄 Tekrar Dene
+                      </Button>
+                    </div>
+                  </Banner>
+                </Card>
+              )}
+
+              {/* Ürün yoksa ve hata yoksa "ürün ekle" mesajı göster */}
+              {!productsData?.error && 
+               !isLoadingProducts &&
+               productsData?.products &&
+               productsData.products.length === 0 && (
                   <Card sectioned>
                     <div style={{ 
                       textAlign: "center", 
