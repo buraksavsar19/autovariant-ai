@@ -559,6 +559,7 @@ export default function VariantCreator() {
   const {
     data: productsData,
     isLoading: isLoadingProducts,
+    isFetching: isFetchingProducts,
     error: productsError,
     refetch: refetchProducts,
   } = useQuery({
@@ -637,10 +638,11 @@ export default function VariantCreator() {
     },
     refetchOnWindowFocus: false,
     enabled: true,
-    retry: 2, // 2 kez tekrar dene
+    retry: 1, // 1 kez tekrar dene (çok fazla retry loading'i uzatır)
     retryDelay: 1000, // 1 saniye bekle
     staleTime: 30000,
-    // initialData kaldırıldı - gerçek API response'unu bekle
+    // Timeout ekle - 10 saniye sonra loading'i bitir
+    gcTime: 60000, // Cache time
   });
 
   // Prompt'u parse et ve önizleme göster
@@ -2692,10 +2694,12 @@ export default function VariantCreator() {
                       productsData.products.length === 0)
                   }
                   helpText={
-                    isLoadingProducts 
+                    (isLoadingProducts || isFetchingProducts)
                       ? "Ürünler yükleniyor..." 
-                      : (productsData && Array.isArray(productsData.products) && productsData.products.length === 0)
+                      : (productsData && Array.isArray(productsData.products) && productsData.products.length === 0 && !productsData.error)
                         ? "Henüz ürün bulunamadı. Lütfen önce ürün ekleyin."
+                        : productsData?.error
+                        ? `Hata: ${productsData.error}`
                         : undefined
                   }
                 />
