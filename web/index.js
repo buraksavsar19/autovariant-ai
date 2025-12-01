@@ -584,7 +584,12 @@ app.get(shopify.config.auth.path, shopify.auth.begin());
 app.get(
   shopify.config.auth.callbackPath,
   shopify.auth.callback(),
-  shopify.redirectToShopifyOrAppRoot()
+  shopify.redirectToShopifyOrAppRoot(),
+  async (req, res) => {
+    // Embedded app için root URL'ine yönlendir
+    const redirectUrl = shopify.config.appUrl || shopify.config.applicationUrl || "/";
+    res.redirect(redirectUrl);
+  }
 );
 // Combine privacy and compliance webhook handlers
 const allWebhookHandlers = {
