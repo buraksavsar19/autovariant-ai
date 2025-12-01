@@ -630,11 +630,9 @@ app.use("/api/*", (req, res, next) => {
 // ============================================================================
 // SCENARIO 2: /api/products/list endpoint - EN ÖNCE tanımla (static file serving'den önce)
 // ============================================================================
-// Bu endpoint'i EN BAŞTA tanımla ki:
-// 1. Static file serving'den önce çalışsın
-// 2. Diğer middleware'lerden önce çalışsın
-// 3. Route matching'de öncelikli olsun
-app.get("/api/products/list", async (req, res, next) => {
+// CRITICAL: Bu endpoint'i EN BAŞTA tanımla - TÜM middleware'lerden ÖNCE
+// Express route matching'de ilk eşleşen route kullanılır
+app.get("/api/products/list", async (req, res) => {
   const startTime = Date.now();
   
   console.log("🔍 /api/products/list endpoint HIT - Request received");
@@ -653,15 +651,17 @@ app.get("/api/products/list", async (req, res, next) => {
   res.setHeader('Content-Type', 'application/json');
   
   // validateAuthenticatedSession middleware'ini manuel çağır
-  // Çünkü middleware chain'de sorun olabilir
+  // Çünkü endpoint'i middleware'den önce tanımladık
   try {
+    // Middleware'i Promise olarak wrap et
     await new Promise((resolve, reject) => {
-      // validateAuthenticatedSession middleware'ini çağır
       const middleware = shopify.validateAuthenticatedSession();
+      // Middleware'i çağır
       middleware(req, res, (err) => {
         if (err) {
           console.error("❌ validateAuthenticatedSession middleware error:", err);
-          reject(err);
+          // Hata olsa bile devam et - session olmayabilir
+          resolve(); // reject yerine resolve - hata durumunda da devam et
         } else {
           resolve();
         }
@@ -672,12 +672,16 @@ app.get("/api/products/list", async (req, res, next) => {
     if (!res.locals.shopify || !res.locals.shopify.session) {
       console.error("❌ Session bulunamadı after validateAuthenticatedSession");
       console.error("Full res.locals keys:", Object.keys(res.locals));
+      console.error("Request URL:", req.url);
+      console.error("Request method:", req.method);
       return res.status(200).send({ 
         products: [],
         error: "Authentication required - please reinstall the app",
         debug: {
           hasShopify: !!res.locals.shopify,
-          hasSession: !!(res.locals.shopify && res.locals.shopify.session)
+          hasSession: !!(res.locals.shopify && res.locals.shopify.session),
+          url: req.url,
+          method: req.method
         }
       });
     }
@@ -2641,12 +2645,22 @@ app.use(shopify.cspHeaders());
 // ============================================================================
 // SCENARIO 6: Static file serving - API route'larından SONRA olmalı
 // ============================================================================
-// Static file serving'i EN SONA koy ki API route'ları öncelikli olsun
-// CRITICAL: /api/* route'larını static file olarak serve ETME
+// CRITICAL: Static file serving'i EN SONA koy
+// /api/* route'ları zaten yukarıda tanımlı, bu yüzden öncelikli olacak
+// Ama yine de ekstra güvenlik için kontrol ekle
 app.use((req, res, next) => {
-  // Eğer request /api ile başlıyorsa, static file serving'i atla
-  if (req.path.startsWith('/api/')) {
-    return next();
+  // Eğer request /api ile başlıyorsa, static file serving'i ATLA
+  // Bu endpoint zaten yukarıda handle edilmiş olmalı
+  if (req.path && req.path.startsWith('/api/')) {
+    console.warn("⚠️ /api/* request static file serving'e ulaştı - bu olmamalı!");
+    console.warn("⚠️ Request path:", req.path);
+    console.warn("⚠️ Request method:", req.method);
+    // Eğer buraya geldiyse, endpoint'e ulaşmamış demektir
+    // 404 döndür
+    return res.status(404).json({ 
+      error: "API endpoint not found",
+      path: req.path 
+    });
   }
   // Diğer request'ler için static file serving'i kullan
   serveStatic(STATIC_PATH, { index: false })(req, res, next);
