@@ -346,10 +346,8 @@ export default function VariantCreator() {
   }, []);
 
   // API base path (demo mode'da /api/demo kullan)
-  // Production'da full URL kullan, development'ta relative URL
-  const apiBase = isDemoMode 
-    ? "/api/demo" 
-    : (import.meta.env.PROD ? window.location.origin + "/api" : "/api");
+  // Her zaman relative URL kullan - Backend ve frontend aynı domain'de
+  const apiBase = isDemoMode ? "/api/demo" : "/api";
 
   // Geçmiş kayıtları ve template'leri yükle
   useEffect(() => {
@@ -568,15 +566,16 @@ export default function VariantCreator() {
   } = useQuery({
     queryKey: ["products", isDemoMode],
     queryFn: async () => {
-      // SCENARIO 8: Frontend fetch - Production'da full URL kullan
+      // Production'da relative URL kullan - Backend ve frontend aynı domain'de
+      // window.location.origin Shopify iframe içinde farklı olabilir
       const endpoint = isDemoMode 
         ? `${apiBase}/products/list` 
-        : (import.meta.env.PROD ? `${window.location.origin}/api/products/list` : "/api/products/list");
+        : "/api/products/list"; // Her zaman relative URL - backend aynı domain'de
       
       console.log(`🚀 Starting products fetch to: ${endpoint}`);
-      console.log(`🔍 isDemoMode: ${isDemoMode}, apiBase: ${apiBase}, PROD: ${import.meta.env.PROD}`);
-      console.log(`🔍 Full URL will be: ${endpoint}`);
+      console.log(`🔍 isDemoMode: ${isDemoMode}, apiBase: ${apiBase}`);
       console.log(`🔍 window.location.origin: ${window.location.origin}`);
+      console.log(`🔍 window.location.href: ${window.location.href}`);
       
       // SCENARIO 9: Frontend timeout - 15 saniye (daha uzun, GraphQL için)
       const controller = new AbortController();
@@ -712,7 +711,7 @@ export default function VariantCreator() {
     try {
       const endpoint = isDemoMode 
         ? `${apiBase}/variants/parse` 
-        : (import.meta.env.PROD ? `${window.location.origin}/api/variants/parse` : "/api/variants/parse");
+        : "/api/variants/parse";
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1263,7 +1262,7 @@ export default function VariantCreator() {
 
       const endpoint = isDemoMode 
         ? `${apiBase}/images/analyze-colors` 
-        : (import.meta.env.PROD ? `${window.location.origin}/api/images/analyze-colors` : "/api/images/analyze-colors");
+        : "/api/images/analyze-colors";
       const response = await fetch(endpoint, {
         method: "POST",
         body: formData,
@@ -1364,7 +1363,7 @@ export default function VariantCreator() {
 
       const endpoint = isDemoMode 
         ? `${apiBase}/images/analyze-colors` 
-        : (import.meta.env.PROD ? `${window.location.origin}/api/images/analyze-colors` : "/api/images/analyze-colors");
+        : "/api/images/analyze-colors";
       const response = await fetch(endpoint, {
         method: "POST",
         body: formData,
@@ -1468,7 +1467,7 @@ export default function VariantCreator() {
 
       const endpoint = isDemoMode 
         ? `${apiBase}/images/upload-to-shopify` 
-        : (import.meta.env.PROD ? `${window.location.origin}/api/images/upload-to-shopify` : "/api/images/upload-to-shopify");
+        : "/api/images/upload-to-shopify";
       const response = await fetch(endpoint, {
         method: "POST",
         body: formData,
@@ -1917,7 +1916,7 @@ export default function VariantCreator() {
         try {
           const endpoint = isDemoMode 
             ? `${apiBase}/variants/create` 
-            : (import.meta.env.PROD ? `${window.location.origin}/api/variants/create` : "/api/variants/create");
+            : "/api/variants/create";
           const response = await fetch(endpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
