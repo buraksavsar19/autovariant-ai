@@ -946,9 +946,28 @@ async function handleProductsList(req, res, startTime) {
       console.warn(`⚠️ No products found for shop: ${res.locals.shopify.session.shop}`);
     }
 
-  // CORS headers ekle (gerekirse)
-  res.setHeader('Content-Type', 'application/json');
-  res.status(200).send({ products: allProducts });
+    // CORS headers ekle (gerekirse)
+    res.setHeader('Content-Type', 'application/json');
+    res.status(200).send({ products: allProducts });
+  } catch (error) {
+    // GraphQL veya parsing hatası
+    const duration = Date.now() - startTime;
+    const shop = res.locals.shopify?.session?.shop || 'Unknown';
+    console.error(`❌ [${shop}] handleProductsList error (${duration}ms):`, error);
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack?.substring(0, 500),
+      name: error.name
+    });
+    
+    // Hata durumunda detaylı bilgi döndür
+    res.setHeader('Content-Type', 'application/json');
+    res.status(200).send({ 
+      products: [],
+      error: error.message || "Ürünler yüklenirken bir hata oluştu",
+      errorType: error.name || "UnknownError"
+    });
+  }
 }
 
 app.post("/api/products", async (_req, res) => {
