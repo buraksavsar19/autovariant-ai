@@ -18,6 +18,44 @@
     </script>
 
     <meta name="shopify-api-key" content="%VITE_SHOPIFY_API_KEY%" />
+    
+    <!-- SendBeacon error handler - En erken aşamada çalışmalı -->
+    <script>
+      (function() {
+        // Console.error'u override et (SendBeacon hatalarını gizle)
+        const originalConsoleError = console.error;
+        console.error = function(...args) {
+          const message = args.map(arg => 
+            typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+          ).join(' ');
+          if (message.includes('SendBeacon')) {
+            return; // SendBeacon hatalarını gizle
+          }
+          originalConsoleError.apply(console, args);
+        };
+
+        // Error event listener (capture phase)
+        window.addEventListener('error', function(event) {
+          const errorMessage = event.message || (event.error && event.error.message) || '';
+          if (errorMessage.includes('SendBeacon')) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            return false;
+          }
+        }, true);
+
+        // Unhandled promise rejection
+        window.addEventListener('unhandledrejection', function(event) {
+          const errorMessage = event.reason?.message || String(event.reason || '');
+          if (errorMessage.includes('SendBeacon')) {
+            event.preventDefault();
+            return false;
+          }
+        });
+      })();
+    </script>
+    
     <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
   </head>
   <body>
