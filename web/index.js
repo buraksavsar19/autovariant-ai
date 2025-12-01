@@ -634,8 +634,11 @@ app.get("/api/products/list", async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   
   // HEMEN bir acknowledgment gönder - frontend'in timeout olmasını önle
-  // Ama response'u henüz bitirme, sadece header'ları gönder
-  res.flushHeaders();
+  // Express'te flushHeaders yok, bu yüzden hemen bir chunk gönder
+  // Ama response'u henüz bitirme
+  if (res.flush) {
+    res.flush();
+  }
   
   // CRITICAL: validateAuthenticatedSession middleware'i redirect yapabilir
   // Bu yüzden middleware'i bypass edip direkt session'ı yükle
