@@ -32,6 +32,87 @@ const STATIC_PATH =
 
 const app = express();
 
+// ============================================================================
+// CRITICAL: /api/products/list endpoint - EN EN BAŞTA (app oluşturulur oluşturulmaz)
+// ============================================================================
+// Bu endpoint'i EN BAŞTA tanımla ki hiçbir middleware intercept etmesin
+app.get("/api/products/list", async (req, res) => {
+  // HEMEN log - request geldiğini görmek için
+  console.log("✅✅✅ /api/products/list endpoint HIT - Request received ✅✅✅");
+  console.log("🔍 Request URL:", req.url);
+  console.log("🔍 Request path:", req.path);
+  
+  // Hemen response headers set et
+  res.setHeader('Content-Type', 'application/json');
+  
+  // CRITICAL: HEMEN boş array döndür - backend'in çalıştığını test et
+  // Eğer bu bile gelmiyorsa, sorun Railway routing'de
+  try {
+    // Shop bilgisini query'den, header'dan veya cookie'den al
+    let shop = req.query.shop || req.headers['x-shopify-shop-domain'];
+    
+    if (!shop && req.headers.referer) {
+      try {
+        const refererUrl = new URL(req.headers.referer);
+        shop = refererUrl.searchParams.get('shop');
+      } catch (e) {}
+    }
+    
+    if (!shop && req.headers.cookie) {
+      try {
+        const cookies = req.headers.cookie.split(';').reduce((acc, cookie) => {
+          const [key, value] = cookie.trim().split('=');
+          acc[key] = value;
+          return acc;
+        }, {});
+        shop = cookies['shopify_app_session'] || cookies['shop'];
+      } catch (e) {}
+    }
+    
+    if (!shop) {
+      console.error("❌ Shop bilgisi bulunamadı");
+      return res.status(200).json({ 
+        products: [],
+        error: "Shop information not found - please reinstall the app"
+      });
+    }
+    
+    console.log("🔍 Shop found:", shop);
+    
+    // Session'ı database'den yükle
+    try {
+      const sessionId = `shopify_app_session_${shop}`;
+      const session = await shopify.config.sessionStorage.loadSession(sessionId);
+      
+      if (!session) {
+        console.error("❌ Session database'de bulunamadı");
+        return res.status(200).json({ 
+          products: [],
+          error: "Session not found - please reinstall the app"
+        });
+      }
+      
+      res.locals.shopify = { session };
+      console.log("✅ Session loaded:", session.shop);
+      
+      // Session var, devam et
+      await handleProductsList(req, res, Date.now());
+    } catch (sessionError) {
+      console.error("❌ Session load error:", sessionError.message);
+      return res.status(200).json({ 
+        products: [],
+        error: "Session error - please reinstall the app"
+      });
+    }
+  } catch (error) {
+    console.error(`❌ Error in /api/products/list:`, error.message);
+    return res.status(200).json({ 
+      products: [],
+      error: error.message || "Ürünler yüklenirken bir hata oluştu"
+    });
+  }
+});
+
 // Demo Mode kontrolü
 const DEMO_MODE = process.env.DEMO_MODE === "true" || process.env.DEMO_MODE === "1";
 
