@@ -770,12 +770,9 @@ app.get("/api/products/list", async (req, res) => {
       timeoutPromise
     ]);
 
-    // Template ürünlerini filtrele
+    // Tüm ürünleri al (template filtreleme kaldırıldı - kullanıcı kendi ürünlerini görmeli)
     const allProducts = productsData.data.products.edges.map((edge) => {
       const product = edge.node;
-      if (isTemplateProduct(product.title)) {
-        return null;
-      }
       return {
         id: product.id,
         title: product.title,
@@ -784,10 +781,11 @@ app.get("/api/products/list", async (req, res) => {
         options: product.options || [],
         hasExistingVariants: (product.variantsCount?.count || 0) > 1,
       };
-    }).filter(Boolean);
+    });
 
     const duration = Date.now() - startTime;
-    console.log(`✅ Products loaded in ${duration}ms, total: ${productsData.data.products.edges.length}, filtered: ${allProducts.length}`);
+    console.log(`✅ Products loaded in ${duration}ms, total: ${allProducts.length}`);
+    console.log(`📋 First 3 products:`, allProducts.slice(0, 3).map(p => ({ id: p.id, title: p.title })));
 
     res.status(200).send({ products: allProducts });
   } catch (error) {

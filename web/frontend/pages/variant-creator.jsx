@@ -2574,10 +2574,11 @@ export default function VariantCreator() {
                 </Card>
               )}
 
-              {/* Ürün yoksa ve hata yoksa "ürün ekle" mesajı göster */}
+              {/* Ürün yoksa ve hata yoksa ve loading bitmişse "ürün ekle" mesajı göster */}
               {!productsData?.error && 
                !isLoadingProducts &&
-               productsData?.products &&
+               productsData &&
+               Array.isArray(productsData.products) &&
                productsData.products.length === 0 && (
                   <Card sectioned>
                     <div style={{ 
