@@ -11,6 +11,16 @@ automatically_update_urls_on_dev = true
 [webhooks]
 api_version = "2026-01"
 
+# Mandatory compliance webhooks
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "https://autovariant-production.up.railway.app/api/webhooks"
+
+# Mandatory compliance webhooks (app lifecycle)
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled", "shop/update", "app_subscription/update"]
+uri = "https://autovariant-production.up.railway.app/api/webhooks"
+
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 # write_products: Ürün ve varyant oluşturma
