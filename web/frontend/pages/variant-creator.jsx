@@ -577,32 +577,28 @@ export default function VariantCreator() {
       console.log(`🔍 window.location.origin: ${window.location.origin}`);
       console.log(`🔍 window.location.href: ${window.location.href}`);
       
-        // SCENARIO 9: Frontend timeout - 20 saniye (daha uzun, GraphQL için)
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-          console.error("⏱️⏱️⏱️ FETCH TIMEOUT AFTER 20s - BACKEND NOT RESPONDING ⏱️⏱️⏱️");
-          console.error("⏱️ Endpoint:", endpoint);
-          console.error("⏱️ This indicates backend is not responding or request is being blocked");
-          controller.abort();
-        }, 20000); // 20 saniye
+      // SCENARIO 9: Frontend timeout - 10 saniye (daha kısa, hızlı feedback için)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.error("⏱️⏱️⏱️ FETCH TIMEOUT AFTER 10s - BACKEND NOT RESPONDING ⏱️⏱️⏱️");
+        console.error("⏱️ Endpoint:", endpoint);
+        console.error("⏱️ This indicates backend is not responding or request is being blocked");
+        controller.abort();
+      }, 10000); // 10 saniye
       
       try {
         const fetchStartTime = Date.now();
         console.log(`🔍 Fetch starting at ${new Date().toISOString()}`);
         
+        // Basit fetch - minimum header'lar
         const response = await fetch(endpoint, {
           signal: controller.signal,
-          credentials: 'include', // SCENARIO 10: Session cookie'lerini gönder
+          credentials: 'include', // Session cookie'lerini gönder
           method: 'GET',
           headers: {
-            'Content-Type': 'application/json',
             'Accept': 'application/json',
-            // SCENARIO 11: CORS için gerekli headers
-            'X-Requested-With': 'XMLHttpRequest',
           },
-          // SCENARIO 12: Cache control
-          cache: 'no-cache',
-          mode: 'cors', // CORS mode
+          cache: 'no-store', // Cache'i tamamen devre dışı bırak
         });
         clearTimeout(timeoutId);
         const fetchDuration = Date.now() - fetchStartTime;
