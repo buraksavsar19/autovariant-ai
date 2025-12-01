@@ -2642,17 +2642,15 @@ app.use(shopify.cspHeaders());
 // SCENARIO 6: Static file serving - API route'larından SONRA olmalı
 // ============================================================================
 // Static file serving'i EN SONA koy ki API route'ları öncelikli olsun
-// Ama /api/* route'ları zaten yukarıda tanımlı, bu yüzden sorun olmamalı
-app.use(serveStatic(STATIC_PATH, { 
-  index: false,
-  // API route'larını static file olarak serve etme
-  setHeaders: (res, path) => {
-    // Eğer path /api ile başlıyorsa, static file olarak serve etme
-    if (path.includes('/api/')) {
-      res.setHeader('Cache-Control', 'no-store');
-    }
+// CRITICAL: /api/* route'larını static file olarak serve ETME
+app.use((req, res, next) => {
+  // Eğer request /api ile başlıyorsa, static file serving'i atla
+  if (req.path.startsWith('/api/')) {
+    return next();
   }
-}));
+  // Diğer request'ler için static file serving'i kullan
+  serveStatic(STATIC_PATH, { index: false })(req, res, next);
+});
 
 // SCENARIO 7: Catch-all route - EN SONA koy (API route'larından sonra)
 app.use("/*", shopify.ensureInstalledOnShop(), async (_req, res, _next) => {
