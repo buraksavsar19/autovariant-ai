@@ -10,50 +10,49 @@ export default function ExitIframe() {
   const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
-    if (isRedirecting) return; // Zaten yönlendirme yapılıyorsa tekrar yapma
-    
-    if (!!app && !!search) {
-      const params = new URLSearchParams(search);
-      const redirectUri = params.get("redirectUri");
-      
-      if (!redirectUri) {
-        // redirectUri yoksa, app'in root URL'ine yönlendir
-        setIsRedirecting(true);
-        window.location.href = "/";
-        return;
-      }
-
-      try {
-        const url = new URL(decodeURIComponent(redirectUri));
-
-        if (
-          [window.location.hostname, "admin.shopify.com"].includes(url.hostname) ||
-          url.hostname.endsWith(".myshopify.com")
-        ) {
-          setIsRedirecting(true);
-          window.open(url, "_top");
-        } else {
-          setShowWarning(true);
-        }
-      } catch (error) {
-        // Geçersiz URL, app'in root URL'ine yönlendir
-        console.error("Invalid redirectUri:", error);
-        setIsRedirecting(true);
-        window.location.href = "/";
-      }
-    } else if (!search) {
-      // redirectUri parametresi yoksa, app'in root URL'ine yönlendir
+    // redirectUri yoksa veya search parametresi yoksa, direkt root'a yönlendir (uyarı gösterme)
+    if (!search) {
       setIsRedirecting(true);
-      window.location.href = "/";
+      window.location.replace("/");
+      return;
     }
-  }, [app, search, isRedirecting]);
+
+    const params = new URLSearchParams(search);
+    const redirectUri = params.get("redirectUri");
+    
+    if (!redirectUri) {
+      // redirectUri yoksa, app'in root URL'ine yönlendir (uyarı gösterme)
+      setIsRedirecting(true);
+      window.location.replace("/");
+      return;
+    }
+
+    try {
+      const url = new URL(decodeURIComponent(redirectUri));
+
+      if (
+        [window.location.hostname, "admin.shopify.com"].includes(url.hostname) ||
+        url.hostname.endsWith(".myshopify.com")
+      ) {
+        setIsRedirecting(true);
+        window.open(url, "_top");
+      } else {
+        // Sadece geçersiz external URL'ler için uyarı göster
+        setShowWarning(true);
+      }
+    } catch (error) {
+      // Geçersiz URL, app'in root URL'ine yönlendir (uyarı gösterme)
+      setIsRedirecting(true);
+      window.location.replace("/");
+    }
+  }, [app, search]);
 
   // Yönlendirme yapılıyorsa hiçbir şey gösterme
   if (isRedirecting) {
     return null;
   }
 
-  // Sadece uyarı gösterilmesi gerekiyorsa göster
+  // Sadece geçersiz external URL için uyarı göster
   return showWarning ? (
     <Page narrowWidth>
       <Layout>

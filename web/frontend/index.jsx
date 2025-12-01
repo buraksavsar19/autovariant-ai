@@ -4,19 +4,32 @@ import { initI18n } from "./utils/i18nUtils";
 
 // SendBeacon hatalarını filtrele (Vite HMR veya Shopify App Bridge'den kaynaklanabilir)
 window.addEventListener("error", (event) => {
-  if (event.message && event.message.includes("SendBeacon")) {
+  const errorMessage = event.message || event.error?.message || "";
+  if (errorMessage.includes("SendBeacon")) {
+    event.preventDefault();
+    event.stopPropagation();
+    return false;
+  }
+}, true); // capture phase'de yakala
+
+// Unhandled promise rejection'ları da yakala
+window.addEventListener("unhandledrejection", (event) => {
+  const errorMessage = event.reason?.message || String(event.reason || "");
+  if (errorMessage.includes("SendBeacon")) {
     event.preventDefault();
     return false;
   }
 });
 
-// Unhandled promise rejection'ları da yakala
-window.addEventListener("unhandledrejection", (event) => {
-  if (event.reason && event.reason.message && event.reason.message.includes("SendBeacon")) {
-    event.preventDefault();
-    return false;
+// Console.error'u override et (SendBeacon hatalarını gizle)
+const originalConsoleError = console.error;
+console.error = function(...args) {
+  const message = args.join(" ");
+  if (message.includes("SendBeacon")) {
+    return; // SendBeacon hatalarını gizle
   }
-});
+  originalConsoleError.apply(console, args);
+};
 
 console.log("index.jsx loaded, initializing app...");
 
