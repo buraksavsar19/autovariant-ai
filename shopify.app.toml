@@ -18,7 +18,7 @@ uri = "https://autovariant-production.up.railway.app/api/webhooks"
 
 # Mandatory compliance webhooks (app lifecycle)
 [[webhooks.subscriptions]]
-topics = ["app/uninstalled", "shop/update", "app_subscription/update"]
+topics = ["app/uninstalled", "shop/update"]
 uri = "https://autovariant-production.up.railway.app/api/webhooks"
 
 [access_scopes]
