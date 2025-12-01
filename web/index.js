@@ -623,10 +623,19 @@ app.get("/api/products/list", async (req, res) => {
   console.log("🔍 Request URL:", req.url);
   console.log("🔍 Request path:", req.path);
   console.log("🔍 Request query:", req.query);
-  console.log("🔍 Request headers cookie:", req.headers.cookie ? "present" : "missing");
+  console.log("🔍 Request headers:", {
+    cookie: req.headers.cookie ? "present (" + req.headers.cookie.substring(0, 100) + ")" : "missing",
+    origin: req.headers.origin,
+    referer: req.headers.referer,
+    'user-agent': req.headers['user-agent']?.substring(0, 50)
+  });
   
   // Hemen response headers set et - timeout'u önlemek için
   res.setHeader('Content-Type', 'application/json');
+  
+  // HEMEN bir acknowledgment gönder - frontend'in timeout olmasını önle
+  // Ama response'u henüz bitirme, sadece header'ları gönder
+  res.flushHeaders();
   
   // CRITICAL: validateAuthenticatedSession middleware'i redirect yapabilir
   // Bu yüzden middleware'i bypass edip direkt session'ı yükle

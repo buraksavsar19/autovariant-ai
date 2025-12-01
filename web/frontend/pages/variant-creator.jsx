@@ -577,13 +577,14 @@ export default function VariantCreator() {
       console.log(`🔍 window.location.origin: ${window.location.origin}`);
       console.log(`🔍 window.location.href: ${window.location.href}`);
       
-      // SCENARIO 9: Frontend timeout - 15 saniye (daha uzun, GraphQL için)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        console.warn("⏱️ Fetch timeout after 15s, aborting...");
-        console.warn("⏱️ This might indicate backend is not responding");
-        controller.abort();
-      }, 15000); // 15 saniye
+        // SCENARIO 9: Frontend timeout - 20 saniye (daha uzun, GraphQL için)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          console.error("⏱️⏱️⏱️ FETCH TIMEOUT AFTER 20s - BACKEND NOT RESPONDING ⏱️⏱️⏱️");
+          console.error("⏱️ Endpoint:", endpoint);
+          console.error("⏱️ This indicates backend is not responding or request is being blocked");
+          controller.abort();
+        }, 20000); // 20 saniye
       
       try {
         const fetchStartTime = Date.now();
@@ -649,11 +650,21 @@ export default function VariantCreator() {
         return { products: data.products, error: data.error };
       } catch (error) {
         clearTimeout(timeoutId);
-        console.error("❌ Products fetch error:", {
+        console.error("❌❌❌ Products fetch error:", {
           name: error.name,
           message: error.message,
-          stack: error.stack
+          stack: error.stack?.substring(0, 500),
+          endpoint: endpoint,
+          isAbortError: error.name === 'AbortError'
         });
+        
+        // AbortError ise özel mesaj göster
+        if (error.name === 'AbortError') {
+          return { 
+            products: [], 
+            error: "Backend yanıt vermiyor. Lütfen sayfayı yenileyin veya daha sonra tekrar deneyin." 
+          };
+        }
         
         // Hata durumunda error bilgisi ile döndür
         return { 
