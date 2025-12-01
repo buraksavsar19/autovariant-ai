@@ -635,34 +635,49 @@ app.get("/api/products/list", async (req, res) => {
   // Hemen response headers set et - timeout'u önlemek için
   res.setHeader('Content-Type', 'application/json');
   
-  // CRITICAL: Session kontrolü yap ama hata durumunda bile response döndür
+  // CRITICAL: validateAuthenticatedSession middleware'i redirect yapabilir
+  // Bu yüzden middleware'i bypass edip direkt session'ı kontrol et
   try {
-    // validateAuthenticatedSession middleware'ini manuel çağır
-    // Ama eğer hata verirse bile devam et
+    // validateAuthenticatedSession middleware'ini çağır ama redirect'i engelle
+    // Middleware'i Promise olarak wrap et ve redirect'i yakala
+    let middlewareRedirected = false;
+    const originalRedirect = res.redirect;
+    res.redirect = function(url) {
+      middlewareRedirected = true;
+      console.warn("⚠️ Middleware tried to redirect to:", url);
+      // Redirect'i engelle, sadece log'la
+    };
+    
     try {
-      await new Promise((resolve, reject) => {
+      await new Promise((resolve) => {
         const middleware = shopify.validateAuthenticatedSession();
         middleware(req, res, (err) => {
           if (err) {
             console.error("❌ validateAuthenticatedSession middleware error:", err);
-            // Hata olsa bile devam et - session olmayabilir
-            resolve();
-          } else {
-            resolve();
           }
+          resolve();
         });
       });
     } catch (middlewareError) {
       console.error("❌ Middleware call error:", middlewareError);
-      // Middleware hatası olsa bile devam et
+    }
+    
+    // Redirect fonksiyonunu geri yükle
+    res.redirect = originalRedirect;
+    
+    // Middleware redirect yaptıysa, session yok demektir
+    if (middlewareRedirected) {
+      console.error("❌ Middleware redirected - session not found");
+      return res.status(200).send({ 
+        products: [],
+        error: "Authentication required - please reinstall the app"
+      });
     }
     
     // Middleware'den sonra session kontrolü
     if (!res.locals.shopify || !res.locals.shopify.session) {
       console.error("❌ Session bulunamadı after validateAuthenticatedSession");
       console.error("🔍 res.locals keys:", Object.keys(res.locals));
-      // Session yoksa bile boş array döndür - frontend takılı kalmasın
-      console.log("✅ Returning empty products array (no session)");
       return res.status(200).send({ 
         products: [],
         error: "Authentication required - please reinstall the app"
@@ -674,7 +689,6 @@ app.get("/api/products/list", async (req, res) => {
   } catch (error) {
     console.error(`❌ Error in /api/products/list:`, error);
     console.error("Error stack:", error.stack?.substring(0, 500));
-    // Hata durumunda bile response döndür - frontend takılı kalmasın
     res.status(200).send({ 
       products: [],
       error: error.message || "Ürünler yüklenirken bir hata oluştu",
