@@ -2,7 +2,7 @@
 
 client_id = "39e3fc3eda0c39b0097c956dd53f0e3e"
 name = "Autovariant AI"
-application_url = "https://shopify-app-template-node-copy-production.up.railway.app"
+application_url = "https://autovariant-production.up.railway.app"
 embedded = true
 
 [build]
@@ -20,4 +20,4 @@ api_version = "2026-01"
 scopes = "write_products,read_locations,write_inventory,read_inventory"
 
 [auth]
-redirect_urls = [ "https://shopify-app-template-node-copy-production.up.railway.app/api/auth/callback" ]
+redirect_urls = [ "https://autovariant-production.up.railway.app/api/auth/callback" ]

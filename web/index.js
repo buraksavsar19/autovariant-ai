@@ -15,6 +15,7 @@ dotenv.config();
 import shopify from "./shopify.js";
 import productCreator from "./product-creator.js";
 import PrivacyWebhookHandlers from "./privacy.js";
+import ComplianceWebhookHandlers from "./compliance.js";
 import { parseVariantPrompt, parseVariantPromptWithGPT, createVariants } from "./variant-creator.js";
 import OpenAI from "openai";
 import sharp from "sharp";
@@ -30,6 +31,31 @@ const STATIC_PATH =
     : `${process.cwd()}/frontend/`;
 
 const app = express();
+
+// Demo Mode kontrolü
+const DEMO_MODE = process.env.DEMO_MODE === "true" || process.env.DEMO_MODE === "1";
+
+// Mock data for demo mode
+const MOCK_PRODUCTS = [
+  { id: "gid://shopify/Product/1", title: "Demo T-Shirt", handle: "demo-t-shirt", variantsCount: 1, options: [{ name: "Size", values: ["S", "M", "L"] }, { name: "Color", values: ["Red", "Blue"] }], hasExistingVariants: false },
+  { id: "gid://shopify/Product/2", title: "Demo Hoodie", handle: "demo-hoodie", variantsCount: 3, options: [{ name: "Size", values: ["M", "L", "XL"] }, { name: "Color", values: ["Black", "White", "Gray"] }], hasExistingVariants: true },
+  { id: "gid://shopify/Product/3", title: "Demo Jeans", handle: "demo-jeans", variantsCount: 0, options: [{ name: "Size", values: ["28", "30", "32", "34"] }, { name: "Color", values: ["Blue", "Black"] }], hasExistingVariants: false },
+];
+
+// Demo mode middleware - authentication'ı bypass et
+const demoModeMiddleware = (req, res, next) => {
+  if (DEMO_MODE) {
+    // Mock session oluştur
+    res.locals.shopify = {
+      session: {
+        shop: "demo-store.myshopify.com",
+        accessToken: "demo-token",
+        id: "demo-session-id",
+      },
+    };
+  }
+  next();
+};
 
 // Privacy Policy ve Terms of Service route'ları (public, authentication gerektirmez)
 // Bu route'lar authentication middleware'den ÖNCE olmalı
@@ -455,6 +481,104 @@ app.get("/terms", (_req, res) => {
   }
 });
 
+// Demo mode route'ları (authentication'dan önce)
+if (DEMO_MODE) {
+  console.log("🚀 DEMO MODE ENABLED - Mock data ile çalışıyor");
+  
+  // Demo mode için mock API endpoint'leri
+  app.get("/api/demo/products/list", demoModeMiddleware, async (_req, res) => {
+    res.status(200).send({ products: MOCK_PRODUCTS });
+  });
+
+  app.get("/api/demo/products/count", demoModeMiddleware, async (_req, res) => {
+    res.status(200).send({ count: MOCK_PRODUCTS.length });
+  });
+
+  app.post("/api/demo/variants/parse", demoModeMiddleware, async (req, res) => {
+    try {
+      const { prompt } = req.body;
+      if (!prompt) {
+        return res.status(400).send({ success: false, error: "Prompt gereklidir" });
+      }
+
+      // GPT ile parse et (gerçek API kullanılabilir)
+      let parsedVariant;
+      const apiKey = process.env.OPENAI_API_KEY;
+      
+      if (apiKey) {
+        try {
+          parsedVariant = await parseVariantPromptWithGPT(prompt, apiKey);
+        } catch (error) {
+          console.warn("GPT API hatası, fallback kullanılıyor:", error.message);
+          parsedVariant = parseVariantPrompt(prompt);
+        }
+      } else {
+        parsedVariant = parseVariantPrompt(prompt);
+      }
+
+      res.status(200).send({ success: true, parsed: parsedVariant });
+    } catch (error) {
+      res.status(500).send({ success: false, error: error.message });
+    }
+  });
+
+  app.post("/api/demo/variants/create", demoModeMiddleware, async (req, res) => {
+    // Demo mode'da gerçek varyant oluşturma yapılmaz, sadece mock response döner
+    const { editableVariants } = req.body;
+    const variantCount = editableVariants ? editableVariants.length : 6;
+    
+    // Simüle edilmiş gecikme
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    res.status(200).send({
+      success: true,
+      variantsCreated: variantCount,
+      variants: editableVariants || [],
+      parsed: { sizes: ["S", "M", "L"], colors: ["Kırmızı", "Mavi"] },
+      demo: true,
+      message: "Demo mode: Varyantlar simüle edildi (gerçek Shopify'a kaydedilmedi)"
+    });
+  });
+
+  app.post("/api/demo/images/analyze-colors", demoModeMiddleware, upload.array("images", 20), async (req, res) => {
+    // Demo mode'da mock renk analizi
+    const colors = JSON.parse(req.body.colors || "[]");
+    const imageIds = req.body.imageIds ? 
+      (Array.isArray(req.body.imageIds) ? req.body.imageIds : [req.body.imageIds]) : 
+      [];
+    
+    const matches = req.files?.map((file, index) => {
+      // Rastgele bir renk eşleştir (demo için)
+      const randomColor = colors[Math.floor(Math.random() * colors.length)] || colors[0];
+      return {
+        imageId: imageIds[index] || `image-${index}`,
+        color: randomColor
+      };
+    }) || [];
+
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    res.status(200).send({
+      success: true,
+      matches,
+      demo: true,
+      message: "Demo mode: Renk analizi simüle edildi"
+    });
+  });
+
+  app.post("/api/demo/images/upload-to-shopify", demoModeMiddleware, upload.array("images", 20), async (req, res) => {
+    // Demo mode'da mock upload
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    res.status(200).send({
+      success: true,
+      uploaded: req.files?.length || 0,
+      demo: true,
+      message: "Demo mode: Görseller simüle edildi (gerçek Shopify'a yüklenmedi)"
+    });
+  });
+}
+
 // Set up Shopify authentication and webhook handling
 app.get(shopify.config.auth.path, shopify.auth.begin());
 app.get(
@@ -462,15 +586,26 @@ app.get(
   shopify.auth.callback(),
   shopify.redirectToShopifyOrAppRoot()
 );
+// Combine privacy and compliance webhook handlers
+const allWebhookHandlers = {
+  ...PrivacyWebhookHandlers,
+  ...ComplianceWebhookHandlers,
+};
+
 app.post(
   shopify.config.webhooks.path,
-  shopify.processWebhooks({ webhookHandlers: PrivacyWebhookHandlers })
+  shopify.processWebhooks({ webhookHandlers: allWebhookHandlers })
 );
 
 // If you are adding routes outside of the /api path, remember to
 // also add a proxy rule for them in web/frontend/vite.config.js
 
-app.use("/api/*", shopify.validateAuthenticatedSession());
+// Demo mode'da authentication'ı bypass et
+if (DEMO_MODE) {
+  app.use("/api/demo/*", demoModeMiddleware);
+} else {
+  app.use("/api/*", shopify.validateAuthenticatedSession());
+}
 
 app.use(express.json());
 
