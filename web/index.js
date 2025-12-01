@@ -2641,10 +2641,12 @@ app.post("/api/images/upload-to-shopify", upload.array("images", 20), async (req
   }
 });
 
-app.use(shopify.cspHeaders());
 // ============================================================================
 // SCENARIO 6: Static file serving - API route'larından SONRA olmalı
 // ============================================================================
+// CRITICAL: CSP headers ve static file serving'i EN SONA koy
+// API route'ları öncelikli olmalı
+app.use(shopify.cspHeaders());
 // CRITICAL: Static file serving'i EN SONA koy
 // /api/* route'ları zaten yukarıda tanımlı, bu yüzden öncelikli olacak
 // Ama yine de ekstra güvenlik için kontrol ekle
