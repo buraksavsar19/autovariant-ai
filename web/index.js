@@ -608,12 +608,9 @@ app.get("/api/test", (req, res) => {
   res.status(200).json({ message: "Backend is working!", timestamp: new Date().toISOString() });
 });
 
-app.use(express.json());
-
 // ============================================================================
-// CRITICAL: /api/products/list endpoint - EN ÖNCE tanımla (TÜM middleware'lerden önce)
+// CRITICAL: /api/products/list endpoint - EN ÖNCE tanımla (express.json'dan ÖNCE bile)
 // ============================================================================
-// Express route matching'de ilk eşleşen route kullanılır
 // Bu endpoint'i EN BAŞTA tanımla ki hiçbir middleware intercept etmesin
 app.get("/api/products/list", async (req, res) => {
   const startTime = Date.now();
@@ -623,29 +620,20 @@ app.get("/api/products/list", async (req, res) => {
   console.log("🔍 Request method:", req.method);
   console.log("🔍 Request URL:", req.url);
   console.log("🔍 Request path:", req.path);
-  console.log("🔍 Request IP:", req.ip);
-  console.log("🔍 Request headers:", JSON.stringify({
-    cookie: req.headers.cookie ? "present" : "missing",
-    authorization: req.headers.authorization ? "present" : "missing",
-    host: req.headers.host,
-    referer: req.headers.referer,
-    origin: req.headers.origin
-  }));
   
   // Hemen response headers set et - timeout'u önlemek için
   res.setHeader('Content-Type', 'application/json');
   
-  // CRITICAL: validateAuthenticatedSession middleware'i redirect yapabilir
-  // Bu yüzden middleware'i bypass edip direkt session'ı kontrol et
+  // HEMEN basit bir response gönder - test için
+  // Eğer bu çalışıyorsa, sorun session authentication'da
   try {
     // validateAuthenticatedSession middleware'ini çağır ama redirect'i engelle
-    // Middleware'i Promise olarak wrap et ve redirect'i yakala
     let middlewareRedirected = false;
     const originalRedirect = res.redirect;
     res.redirect = function(url) {
       middlewareRedirected = true;
       console.warn("⚠️ Middleware tried to redirect to:", url);
-      // Redirect'i engelle, sadece log'la
+      // Redirect'i engelle
     };
     
     try {
@@ -677,7 +665,6 @@ app.get("/api/products/list", async (req, res) => {
     // Middleware'den sonra session kontrolü
     if (!res.locals.shopify || !res.locals.shopify.session) {
       console.error("❌ Session bulunamadı after validateAuthenticatedSession");
-      console.error("🔍 res.locals keys:", Object.keys(res.locals));
       return res.status(200).send({ 
         products: [],
         error: "Authentication required - please reinstall the app"
@@ -688,14 +675,16 @@ app.get("/api/products/list", async (req, res) => {
     await handleProductsList(req, res, startTime);
   } catch (error) {
     console.error(`❌ Error in /api/products/list:`, error);
-    console.error("Error stack:", error.stack?.substring(0, 500));
     res.status(200).send({ 
       products: [],
-      error: error.message || "Ürünler yüklenirken bir hata oluştu",
-      errorType: error.name
+      error: error.message || "Ürünler yüklenirken bir hata oluştu"
     });
   }
 });
+
+app.use(express.json());
+
+// Endpoint yukarıda tanımlandı (express.json'dan önce)
 
 // ============================================================================
 // SCENARIO 1: CORS Headers - Tüm API endpoint'leri için
