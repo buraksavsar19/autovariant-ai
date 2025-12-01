@@ -27,6 +27,7 @@ const SHOPIFY_LIMITS = {
   MAX_OPTION_VALUES: 200,        // Per option
   MAX_STOCK_VALUE: 999999,       // Mantıklı üst limit
   MAX_PRICE_VALUE: 9999999,      // Mantıklı üst limit
+  MAX_PRODUCTS_SELECTION: 20,    // Çoklu ürün seçimi için maksimum limit
 };
 
 // API Rate Limiting
@@ -171,19 +172,28 @@ function shouldApplyPriceRule(condition, currentSize, currentColor = null) {
   };
   
   // Önce renk kontrolü yap
-  for (const [key, normalizedColor] of Object.entries(commonColors)) {
-    if (conditionLower.includes(key) && !conditionLower.match(/\d+xl|xs|s|m|l|beden|size/i)) {
-      // Condition'da renk var ama beden yok, bu bir renk kuralı
-      if (currentColorLower && currentColorLower.includes(normalizedColor)) {
-        return true;
-      }
-    }
-  }
-  
-  // Eğer condition direkt bir renk adı ise (örn: "Kırmızı")
-  if (currentColor && commonColors[conditionLower]) {
-    if (currentColorLower.includes(commonColors[conditionLower])) {
+  // Direkt renk eşleştirmesi (condition tam olarak renk adı ise, case-insensitive)
+  if (currentColor) {
+    const conditionClean = conditionLower.trim();
+    const colorClean = currentColorLower.trim();
+    
+    // Tam eşleşme
+    if (conditionClean === colorClean) {
       return true;
+    }
+    
+    // Condition'da renk adı geçiyorsa (örn: "Kırmızı", "Kırmızı için", "kırmızı renkler")
+    for (const [key, normalizedColor] of Object.entries(commonColors)) {
+      // Condition'da bu renk var mı?
+      if (conditionClean.includes(key) || conditionClean === key) {
+        // Beden kelimesi yoksa
+        if (!conditionClean.match(/\d+xl|xs|s|m|l|beden|size/i)) {
+          // Color'da da bu renk var mı?
+          if (colorClean.includes(normalizedColor) || colorClean === normalizedColor) {
+            return true;
+          }
+        }
+      }
     }
   }
   
@@ -230,8 +240,19 @@ function shouldApplyPriceRule(condition, currentSize, currentColor = null) {
   }
   
   // Condition'da direkt beden adı geçiyorsa (örn: "2xl için", "3xl bedenler")
-  for (const size of allSizes) {
-    if (conditionLower.includes(size.toLowerCase()) && currentSizeUpper === size) {
+  // ÖNEMLİ: Büyük bedenleri önce kontrol et (2XL, 3XL gibi), sonra küçük bedenleri (L, M, S)
+  // Çünkü "2XL" içinde "L" geçiyor, bu yüzden önce büyük bedenleri kontrol etmeliyiz
+  const sortedSizes = [...allSizes].sort((a, b) => b.length - a.length); // Uzun bedenleri önce
+  for (const size of sortedSizes) {
+    const sizeLower = size.toLowerCase();
+    // Tam kelime eşleşmesi kontrolü - kelime sınırlarında veya başta/sonda
+    // Örnek: "2xl" için "2xl için" → true, "2xl" için "xl" → false
+    // Regex ile kelime sınırlarını kontrol et
+    const sizePattern = sizeLower.replace(/\d+/g, '\\d+'); // Sayıları regex pattern'e çevir
+    const exactMatchRegex = new RegExp(`(^|\\s)${sizePattern}(\\s|$)`, 'i');
+    const exactMatch = conditionLower === sizeLower || exactMatchRegex.test(conditionLower);
+    
+    if (exactMatch && currentSizeUpper === size) {
       return true;
     }
   }
@@ -312,6 +333,20 @@ export default function VariantCreator() {
       return null;
     }
   }, []);
+
+  // Demo mode kontrolü
+  const isDemoMode = useMemo(() => {
+    try {
+      if (typeof window === "undefined") return false;
+      const params = new URLSearchParams(window.location.search);
+      return params.get("demo") === "true" || params.get("demo") === "1";
+    } catch (e) {
+      return false;
+    }
+  }, []);
+
+  // API base path (demo mode'da /api/demo kullan)
+  const apiBase = isDemoMode ? "/api/demo" : "/api";
 
   // Geçmiş kayıtları ve template'leri yükle
   useEffect(() => {
@@ -458,6 +493,16 @@ export default function VariantCreator() {
     }
   }, [variantsLocked, currentStep]);
 
+  // Hata mesajı gösterildiğinde sayfanın en üstüne scroll yap
+  useEffect(() => {
+    if (error) {
+      // Kısa bir gecikme ile scroll yap (DOM güncellenmesi için)
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }, 100);
+    }
+  }, [error]);
+
   const stepItems = [
     { id: 0, label: texts.steps.selectProduct },
     { id: 1, label: texts.steps.preview },
@@ -514,15 +559,25 @@ export default function VariantCreator() {
   const {
     data: productsData,
     isLoading: isLoadingProducts,
+    error: productsError,
     refetch: refetchProducts,
   } = useQuery({
-    queryKey: ["products"],
+    queryKey: ["products", isDemoMode],
     queryFn: async () => {
-      const response = await fetch("/api/products/list");
-      if (!response.ok) throw new Error("Ürünler yüklenemedi");
-      return await response.json();
+      const endpoint = isDemoMode ? `${apiBase}/products/list` : "/api/products/list";
+      const response = await fetch(endpoint);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Ürünler yüklenemedi");
+      }
+      const data = await response.json();
+      // Hata durumunda bile products array'i döndür
+      return data.products ? data : { products: [] };
     },
     refetchOnWindowFocus: false,
+    enabled: true, // Demo mode'da da çalışsın
+    retry: 1, // Sadece 1 kez tekrar dene
+    retryDelay: 1000, // 1 saniye bekle
   });
 
   // Prompt'u parse et ve önizleme göster
@@ -563,7 +618,8 @@ export default function VariantCreator() {
     setIsUploadingToShopify(false);
 
     try {
-      const response = await fetch("/api/variants/parse", {
+      const endpoint = isDemoMode ? `${apiBase}/variants/parse` : "/api/variants/parse";
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: promptToUse }),
@@ -583,6 +639,13 @@ export default function VariantCreator() {
       // Temel fiyatı ayarla
       setBasePrice(data.parsed.basePrice || null);
 
+      // Debug: Parse edilen stok bilgisini kontrol et
+      console.log("🔍 Parse edilen stok bilgisi:", {
+        defaultStock: data.parsed.defaultStock,
+        defaultStockType: typeof data.parsed.defaultStock,
+        stockRules: data.parsed.stockRules,
+      });
+
       // Düzenlenebilir varyant listesini oluştur
       const sizes = data.parsed.sizes.length > 0 ? data.parsed.sizes : ["Standart"];
       const colors = data.parsed.colors.length > 0 ? data.parsed.colors : ["Standart"];
@@ -597,7 +660,10 @@ export default function VariantCreator() {
       sizes.forEach((size, sizeIndex) => {
         colors.forEach((color, colorIndex) => {
           let variantPrice = data.parsed.basePrice ? parseFloat(data.parsed.basePrice) : 0;
-          let variantStock = data.parsed.defaultStock || 0;
+          // defaultStock'u sayıya çevir (string olabilir)
+          let variantStock = data.parsed.defaultStock !== undefined && data.parsed.defaultStock !== null 
+            ? parseInt(data.parsed.defaultStock, 10) || 0 
+            : 0;
 
           // Fiyat kurallarını uygula
           if (data.parsed.priceRules && data.parsed.priceRules.length > 0) {
@@ -621,32 +687,43 @@ export default function VariantCreator() {
           // Stok kurallarını uygula
           if (data.parsed.stockRules && data.parsed.stockRules.length > 0) {
             data.parsed.stockRules.forEach((rule) => {
-              const condition = rule.condition?.toLowerCase() || "";
-              // Genel kurallar (tümü için)
-              if (condition === "tümü" || condition === "hepsi" || condition === "her biri" || condition === "genel" || condition === "default") {
-                variantStock = rule.quantity || variantStock;
-              } 
-              // Beden bazlı kurallar
-              else if (size && condition.includes(size.toLowerCase())) {
-                variantStock = rule.quantity || variantStock;
+              const condition = rule.condition || "";
+              const quantity = rule.quantity !== undefined ? parseInt(rule.quantity, 10) : null;
+              
+              if (quantity === null || Number.isNaN(quantity)) {
+                return; // Geçersiz quantity, atla
               }
-              // Renk bazlı kurallar (ÖNEMLİ: daha önce eksikti!)
-              else if (color && condition.includes(color.toLowerCase())) {
-                variantStock = rule.quantity || variantStock;
+
+              // Genel kurallar (tümü için)
+              const conditionLower = condition.toLowerCase().trim();
+              if (conditionLower === "tümü" || conditionLower === "hepsi" || conditionLower === "her biri" || conditionLower === "genel" || conditionLower === "default") {
+                variantStock = quantity;
+                return;
+              }
+              
+              // Beden veya renk bazlı kurallar için shouldApplyPriceRule kullan (daha güvenilir)
+              if (shouldApplyPriceRule(condition, size, color)) {
+                variantStock = quantity;
               }
             });
           }
 
           // Karşılaştırma fiyatını hesapla (varsa)
-          let variantCompareAtPrice = data.parsed.compareAtPrice || null;
+          let variantCompareAtPrice = null;
           
-          // Karşılaştırma fiyatı kurallarını uygula (varsa)
+          // ÖNEMLİ: Eğer compareAtPriceRules varsa, sadece kuralları uygula (genel compareAtPrice'ı kullanma)
+          // Eğer compareAtPriceRules yoksa, genel compareAtPrice'ı kullan
           if (data.parsed.compareAtPriceRules && data.parsed.compareAtPriceRules.length > 0) {
+            // Kurallar varsa, sadece eşleşen kuralları uygula
             data.parsed.compareAtPriceRules.forEach((rule) => {
               if (shouldApplyPriceRule(rule.condition || "", size, color)) {
                 variantCompareAtPrice = rule.value || variantCompareAtPrice;
               }
             });
+            // Eğer hiçbir kural eşleşmediyse, null kalır (genel compareAtPrice kullanılmaz)
+          } else {
+            // Kurallar yoksa, genel compareAtPrice'ı kullan
+            variantCompareAtPrice = data.parsed.compareAtPrice || null;
           }
 
           variants.push({
@@ -720,38 +797,83 @@ export default function VariantCreator() {
   // Varyant düzenleme fonksiyonları
   const updateVariantPrice = (variantId, newPrice) => {
     if (variantsLocked) return;
-    const priceValue = parseFloat(newPrice) || 0;
+    
+    // Negatif değer kontrolü
+    const priceValue = parseFloat(newPrice);
+    if (!isNaN(priceValue) && priceValue < 0) {
+      setError("⚠️ Fiyat negatif olamaz! Lütfen 0 veya pozitif bir değer girin.");
+      return; // Negatif değeri kabul etme
+    }
+    
+    const finalPrice = isNaN(priceValue) ? 0 : priceValue;
     setEditableVariants(prev => 
       prev.map(v => 
         v.id === variantId 
-          ? { ...v, price: priceValue }
+          ? { ...v, price: finalPrice }
           : v
       )
     );
     // Son düzenlenen değeri kaydet ve banner'ı göster
-    setLastEditedValue({ type: 'price', value: priceValue, variantId });
+    setLastEditedValue({ type: 'price', value: finalPrice, variantId });
     setShowApplyAllBanner(true);
   };
 
   const updateVariantStock = (variantId, newStock) => {
     if (variantsLocked) return;
-    const stockValue = parseInt(newStock) || 0;
+    
+    // Negatif değer kontrolü
+    const stockValue = parseInt(newStock);
+    if (!isNaN(stockValue) && stockValue < 0) {
+      setError("⚠️ Stok negatif olamaz! Lütfen 0 veya pozitif bir değer girin.");
+      return; // Negatif değeri kabul etme
+    }
+    
+    const finalStock = isNaN(stockValue) ? 0 : stockValue;
     setEditableVariants(prev => 
       prev.map(v => 
         v.id === variantId 
-          ? { ...v, stock: stockValue }
+          ? { ...v, stock: finalStock }
           : v
       )
     );
     // Son düzenlenen değeri kaydet ve banner'ı göster
-    setLastEditedValue({ type: 'stock', value: stockValue, variantId });
+    setLastEditedValue({ type: 'stock', value: finalStock, variantId });
     setShowApplyAllBanner(true);
   };
 
   const updateVariantCompareAtPrice = (variantId, newCompareAtPrice) => {
     if (variantsLocked) return;
-    // Boş string ise null yap, değilse sayıya çevir
-    const compareValue = newCompareAtPrice === "" ? null : (parseFloat(newCompareAtPrice) || null);
+    
+    // Boş string ise null yap
+    if (newCompareAtPrice === "" || newCompareAtPrice === null || newCompareAtPrice === undefined) {
+      const compareValue = null;
+      setEditableVariants(prev => 
+        prev.map(v => 
+          v.id === variantId 
+            ? { ...v, compareAtPrice: compareValue }
+            : v
+        )
+      );
+      return;
+    }
+    
+    // Negatif değer kontrolü
+    const compareValue = parseFloat(newCompareAtPrice);
+    if (isNaN(compareValue) || compareValue < 0) {
+      setError("⚠️ Karşılaştırma fiyatı negatif olamaz! Lütfen 0 veya pozitif bir değer girin.");
+      return;
+    }
+    
+    // Mantık kontrolü: Karşılaştırma fiyatı satış fiyatından büyük olmalı
+    const variant = editableVariants.find(v => v.id === variantId);
+    if (variant) {
+      const price = parseFloat(variant.price) || 0;
+      if (compareValue <= price) {
+        setError(`⚠️ Karşılaştırma fiyatı (${compareValue}₺) satış fiyatından (${price}₺) büyük olmalı!`);
+        return;
+      }
+    }
+    
     setEditableVariants(prev => 
       prev.map(v => 
         v.id === variantId 
@@ -760,10 +882,8 @@ export default function VariantCreator() {
       )
     );
     // Son düzenlenen değeri kaydet ve banner'ı göster
-    if (compareValue !== null) {
-      setLastEditedValue({ type: 'compareAtPrice', value: compareValue, variantId });
-      setShowApplyAllBanner(true);
-    }
+    setLastEditedValue({ type: 'compareAtPrice', value: compareValue, variantId });
+    setShowApplyAllBanner(true);
   };
 
   // Tüm varyantlara değer uygula
@@ -1047,7 +1167,8 @@ export default function VariantCreator() {
       });
       formData.append('colors', JSON.stringify(preview.colors));
 
-      const response = await fetch("/api/images/analyze-colors", {
+      const endpoint = isDemoMode ? `${apiBase}/images/analyze-colors` : "/api/images/analyze-colors";
+      const response = await fetch(endpoint, {
         method: "POST",
         body: formData,
       });
@@ -1145,7 +1266,8 @@ export default function VariantCreator() {
       });
       formData.append('colors', JSON.stringify(preview.colors));
 
-      const response = await fetch("/api/images/analyze-colors", {
+      const endpoint = isDemoMode ? `${apiBase}/images/analyze-colors` : "/api/images/analyze-colors";
+      const response = await fetch(endpoint, {
         method: "POST",
         body: formData,
       });
@@ -1246,7 +1368,8 @@ export default function VariantCreator() {
       formData.append('productId', productIdToUse);
       formData.append('imageColorMatches', JSON.stringify(colorMatchesToUse));
 
-      const response = await fetch("/api/images/upload-to-shopify", {
+      const endpoint = isDemoMode ? `${apiBase}/images/upload-to-shopify` : "/api/images/upload-to-shopify";
+      const response = await fetch(endpoint, {
         method: "POST",
         body: formData,
       });
@@ -1692,7 +1815,8 @@ export default function VariantCreator() {
         const productName = product?.title || `Ürün ${i + 1}`;
 
         try {
-          const response = await fetch("/api/variants/create", {
+          const endpoint = isDemoMode ? `${apiBase}/variants/create` : "/api/variants/create";
+          const response = await fetch(endpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -1879,6 +2003,15 @@ export default function VariantCreator() {
       <TitleBar title={texts.app.title} />
       <Layout>
         <Layout.Section>
+          {/* Demo Mode Banner */}
+          {isDemoMode && (
+            <Banner status="info" title="🎭 Demo Mode Aktif">
+              <Text as="p" variant="bodyMd">
+                Bu demo modunda çalışıyorsunuz. Gerçek Shopify mağazanıza değişiklik yapılmayacak. 
+                Tüm işlemler simüle edilecek.
+              </Text>
+            </Banner>
+          )}
           <Card sectioned>
             <Stack vertical spacing="loose">
               {/* Üst adım göstergesi - Kompakt ve Mobil uyumlu */}
@@ -1990,9 +2123,21 @@ export default function VariantCreator() {
                     {getStepHelpText(currentStep)}
                   </Text>
                   {currentStep === 0 && (
-                    <Text as="p" variant="bodySm" color="subdued" style={{ marginTop: "8px" }}>
-                      💡 Varyantları oluşturmak için önce ürün eklemeniz gerekmektedir.
-                    </Text>
+                    <div style={{ 
+                      marginTop: "12px", 
+                      padding: "12px 16px", 
+                      background: "#fff3cd", 
+                      border: "2px solid #ffc107",
+                      borderRadius: "8px",
+                      borderLeft: "4px solid #ff9800"
+                    }}>
+                      <Text as="p" variant="bodyMd" fontWeight="semibold" style={{ color: "#856404", marginBottom: "4px" }}>
+                        ⚠️ Önemli: Ürün Gerekli
+                      </Text>
+                      <Text as="p" variant="bodySm" style={{ color: "#856404" }}>
+                        Varyantları oluşturmak için önce mağazanıza en az bir ürün eklemeniz gerekmektedir.
+                      </Text>
+                    </div>
                   )}
                 </Banner>
               )}
@@ -2469,28 +2614,59 @@ export default function VariantCreator() {
                 <Card sectioned>
                   <Stack vertical spacing="base">
                     <Text as="p" variant="bodyMd" fontWeight="semibold">
-                      Ürünler ({selectedProductIds.length} seçili)
+                      Ürünler ({selectedProductIds.length} / {SHOPIFY_LIMITS.MAX_PRODUCTS_SELECTION} seçili)
                     </Text>
                     <Text as="p" variant="bodySm" color="subdued">
                       Aynı varyant kombinasyonunu birden fazla ürüne uygulamak için ürünleri seçin
                     </Text>
+                    {selectedProductIds.length >= SHOPIFY_LIMITS.MAX_PRODUCTS_SELECTION && (
+                      <Banner status="warning" title="Maksimum Limit">
+                        <Text as="p" variant="bodySm">
+                          Maksimum {SHOPIFY_LIMITS.MAX_PRODUCTS_SELECTION} ürün seçebilirsiniz. Daha fazla ürün seçmek için bazı seçimleri kaldırın.
+                        </Text>
+                      </Banner>
+                    )}
+                    {selectedProductIds.length >= SHOPIFY_LIMITS.MAX_PRODUCTS_SELECTION * 0.8 && selectedProductIds.length < SHOPIFY_LIMITS.MAX_PRODUCTS_SELECTION && (
+                      <Banner status="info" title="Limit Yaklaşıyor">
+                        <Text as="p" variant="bodySm">
+                          {SHOPIFY_LIMITS.MAX_PRODUCTS_SELECTION - selectedProductIds.length} ürün daha seçebilirsiniz.
+                        </Text>
+                      </Banner>
+                    )}
                     <Stack vertical spacing="base">
                       {productsData?.products && productsData.products.length > 0 ? (
-                        productsData.products.map((product) => (
-                          <Checkbox
-                            key={product.id}
-                            label={product.title}
-                            checked={selectedProductIds.includes(product.id)}
-                            onChange={(checked) => {
-                              if (checked) {
-                                setSelectedProductIds([...selectedProductIds, product.id]);
-                              } else {
-                                setSelectedProductIds(selectedProductIds.filter(id => id !== product.id));
-                              }
-                            }}
-                            disabled={isCreating}
-                          />
-                        ))
+                        productsData.products.map((product) => {
+                          const isSelected = selectedProductIds.includes(product.id);
+                          const isAtLimit = !isSelected && selectedProductIds.length >= SHOPIFY_LIMITS.MAX_PRODUCTS_SELECTION;
+                          
+                          return (
+                            <Checkbox
+                              key={product.id}
+                              label={product.title}
+                              checked={isSelected}
+                              onChange={(checked) => {
+                                if (checked) {
+                                  // Limit kontrolü
+                                  if (selectedProductIds.length >= SHOPIFY_LIMITS.MAX_PRODUCTS_SELECTION) {
+                                    setError(
+                                      `⚠️ Maksimum Ürün Limiti Aşıldı!\n\n` +
+                                      `Seçili ürün sayısı: ${selectedProductIds.length}\n` +
+                                      `Maksimum limit: ${SHOPIFY_LIMITS.MAX_PRODUCTS_SELECTION} ürün\n\n` +
+                                      `Lütfen bazı ürünlerin seçimini kaldırın.`
+                                    );
+                                    return;
+                                  }
+                                  setSelectedProductIds([...selectedProductIds, product.id]);
+                                  setError(null); // Başarılı seçimde hata mesajını temizle
+                                } else {
+                                  setSelectedProductIds(selectedProductIds.filter(id => id !== product.id));
+                                  setError(null); // Seçim kaldırıldığında hata mesajını temizle
+                                }
+                              }}
+                              disabled={isCreating || isAtLimit}
+                            />
+                          );
+                        })
                       ) : (
                         <Text as="p" variant="bodySm" color="subdued">
                           Ürün bulunamadı
@@ -2507,6 +2683,21 @@ export default function VariantCreator() {
                       </Button>
                     )}
                   </Stack>
+                </Card>
+              )}
+
+              {productsError && !isLoadingProducts && (
+                <Card sectioned>
+                  <Banner status="critical" title="Ürünler yüklenemedi">
+                    <Text as="p" variant="bodySm">
+                      {productsError.message || "Ürünler yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin veya tekrar deneyin."}
+                    </Text>
+                    <div style={{ marginTop: "12px" }}>
+                      <Button onClick={() => refetchProducts()}>
+                        🔄 Tekrar Dene
+                      </Button>
+                    </div>
+                  </Banner>
                 </Card>
               )}
 
@@ -2765,7 +2956,25 @@ export default function VariantCreator() {
                 </Stack>
                 <TextField
                   value={prompt}
-                  onChange={setPrompt}
+                  onChange={(value) => {
+                    const MAX_PROMPT_LENGTH = 1000;
+                    if (value.length > MAX_PROMPT_LENGTH) {
+                      // 1000 karakteri geçerse hata mesajı göster ve yazmayı engelle
+                      setError(
+                        `⚠️ Prompt çok uzun!\n\n` +
+                        `Mevcut: ${value.length} karakter\n` +
+                        `Maksimum: ${MAX_PROMPT_LENGTH} karakter\n\n` +
+                        `Lütfen prompt'unuzu kısaltın.`
+                      );
+                      // Sadece ilk 1000 karakteri al
+                      setPrompt(value.substring(0, MAX_PROMPT_LENGTH));
+                    } else {
+                      // 1000 karakter altındaysa normal yazmaya izin ver
+                      setError(null);
+                      setPrompt(value);
+                    }
+                  }}
+                  maxLength={1000}
                   placeholder="Örnek: S'den 3XL'e kadar tüm bedenler, kırmızı yeşil mavi sarı mor renkler, fiyat 500 lira, 2XL ve sonrası için fiyat +100 lira, her varyant için 10 adet stok"
                   multiline={4}
                   disabled={
@@ -3299,8 +3508,8 @@ export default function VariantCreator() {
                             <tr style={{ borderBottom: "2px solid #e1e3e5", background: "#f9fafb" }}>
                               <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px" }}>Beden</th>
                               <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px" }}>Renk</th>
-                              <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px" }}>Fiyat (₺)</th>
-                              <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px" }}>Karşılaştırma (₺)</th>
+                              <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px", width: "150px" }}>Fiyat (₺)</th>
+                              <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px", width: "150px" }}>Karşılaştırma (₺)</th>
                               <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", fontSize: "13px" }}>Stok</th>
                               <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: "600", fontSize: "13px", width: "60px" }}></th>
                           </tr>
@@ -3320,7 +3529,7 @@ export default function VariantCreator() {
                                 <td style={{ padding: "8px 12px" }}>
                                 <Badge>{variant.color}</Badge>
                               </td>
-                                <td style={{ padding: "8px 12px" }}>
+                                <td style={{ padding: "8px 12px", width: "150px" }}>
                                 <TextField
                                   type="number"
                                   value={variant.price}
@@ -3332,7 +3541,7 @@ export default function VariantCreator() {
                                 disabled={variantsLocked}
                                 />
                               </td>
-                                <td style={{ padding: "8px 12px" }}>
+                                <td style={{ padding: "8px 12px", width: "150px" }}>
                                 <TextField
                                   type="number"
                                   value={variant.compareAtPrice || ""}
@@ -3427,7 +3636,7 @@ export default function VariantCreator() {
                                 <TextField
                                   label="Stok"
                                   type="number"
-                                  value={variant.stock.toString()}
+                                  value={variant.stock !== undefined && variant.stock !== null ? variant.stock.toString() : ""}
                                   onChange={(value) => updateVariantStock(variant.id, value)}
                                   autoComplete="off"
                                   min="0"
@@ -3451,6 +3660,35 @@ export default function VariantCreator() {
                         }
                       `}</style>
                     </>
+                  )}
+
+                  {/* Toplu Ürün Seçimi: Önizleme Tablosunun Altında "Varyantları Oluştur" Butonu */}
+                  {editableVariants.length > 0 && useMultiSelect && selectedProductIds.length > 0 && (
+                    <div style={{ 
+                      marginTop: "2rem", 
+                      paddingTop: "1.5rem", 
+                      borderTop: "2px solid #e1e3e5",
+                      display: "flex",
+                      justifyContent: "center"
+                    }}>
+                      <Button
+                        primary
+                        size="large"
+                        onClick={handleCreate}
+                        disabled={
+                          selectedProductIds.length === 0 ||
+                          editableVariants.length === 0 ||
+                          isCreating ||
+                          variantsLocked ||
+                          (productsData?.products && productsData.products.length === 0)
+                        }
+                        loading={isCreating}
+                      >
+                        {isCreating 
+                          ? `${selectedProductIds.length} Ürüne Varyantları Oluşturuluyor...`
+                          : `${selectedProductIds.length} Ürüne Varyantları Oluştur`}
+                      </Button>
+                    </div>
                   )}
                 </div>
 
@@ -4365,10 +4603,10 @@ export default function VariantCreator() {
                 borderRadius: "8px", 
                 border: "1px solid #ffc453" 
               }}>
-                <Stack vertical spacing="tight">
-                  <Text as="p" variant="bodyMd" fontWeight="semibold">
+            <Stack vertical spacing="tight">
+              <Text as="p" variant="bodyMd" fontWeight="semibold">
                     Etkilenen ürünler:
-                  </Text>
+              </Text>
                   {existingVariantInfo.products.map((product, idx) => (
                     <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <Text as="span" variant="bodySm">
@@ -4391,11 +4629,11 @@ export default function VariantCreator() {
               <Stack vertical spacing="extraTight">
                 <Text as="p" variant="bodySm">
                   <strong>Eklenecek yeni varyant:</strong> {existingVariantInfo?.newVariantCount || 0} adet
-                </Text>
-                <Text as="p" variant="bodySm" color="subdued">
+              </Text>
+              <Text as="p" variant="bodySm" color="subdued">
                   Not: Aynı beden/renk kombinasyonu varsa, mevcut varyantlar güncellenmeyecek, yenileri eklenecektir.
-                </Text>
-              </Stack>
+              </Text>
+            </Stack>
             </div>
           </Stack>
         </Modal.Section>

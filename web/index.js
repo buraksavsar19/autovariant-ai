@@ -584,12 +584,7 @@ app.get(shopify.config.auth.path, shopify.auth.begin());
 app.get(
   shopify.config.auth.callbackPath,
   shopify.auth.callback(),
-  shopify.redirectToShopifyOrAppRoot(),
-  async (req, res) => {
-    // Embedded app için root URL'ine yönlendir
-    const redirectUrl = shopify.config.appUrl || shopify.config.applicationUrl || "/";
-    res.redirect(redirectUrl);
-  }
+  shopify.redirectToShopifyOrAppRoot()
 );
 // Combine privacy and compliance webhook handlers
 const allWebhookHandlers = {
@@ -721,8 +716,17 @@ function isTemplateProduct(title) {
 }
 
 // Ürünleri listeleme endpoint'i (template ürünleri hariç)
-app.get("/api/products/list", async (_req, res) => {
+app.get("/api/products/list", async (req, res) => {
   try {
+    // Session kontrolü
+    if (!res.locals.shopify || !res.locals.shopify.session) {
+      console.error("Session bulunamadı - authentication gerekli");
+      return res.status(401).send({ 
+        error: "Authentication required",
+        products: [] 
+      });
+    }
+
     const client = new shopify.api.clients.Graphql({
       session: res.locals.shopify.session,
     });
@@ -766,7 +770,11 @@ app.get("/api/products/list", async (_req, res) => {
     res.status(200).send({ products });
   } catch (error) {
     console.error("Ürünler listelenirken hata:", error);
-    res.status(500).send({ error: error.message });
+    // Hata durumunda boş array döndür, böylece frontend takılı kalmaz
+    res.status(500).send({ 
+      error: error.message || "Ürünler yüklenirken bir hata oluştu",
+      products: [] 
+    });
   }
 });
 
