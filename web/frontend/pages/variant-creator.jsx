@@ -577,14 +577,15 @@ export default function VariantCreator() {
       console.log(`🔍 window.location.origin: ${window.location.origin}`);
       console.log(`🔍 window.location.href: ${window.location.href}`);
       
-      // SCENARIO 9: Frontend timeout - 10 saniye (daha kısa, hızlı feedback için)
+      // SCENARIO 9: Frontend timeout - 5 saniye (çok kısa, hızlı feedback için)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.error("⏱️⏱️⏱️ FETCH TIMEOUT AFTER 10s - BACKEND NOT RESPONDING ⏱️⏱️⏱️");
+        console.error("⏱️⏱️⏱️ FETCH TIMEOUT AFTER 5s - BACKEND NOT RESPONDING ⏱️⏱️⏱️");
         console.error("⏱️ Endpoint:", endpoint);
         console.error("⏱️ This indicates backend is not responding or request is being blocked");
+        console.error("⏱️ Check Railway logs to see if request reached backend");
         controller.abort();
-      }, 10000); // 10 saniye
+      }, 5000); // 5 saniye - çok kısa timeout
       
       try {
         const fetchStartTime = Date.now();
