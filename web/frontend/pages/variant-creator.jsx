@@ -346,7 +346,10 @@ export default function VariantCreator() {
   }, []);
 
   // API base path (demo mode'da /api/demo kullan)
-  const apiBase = isDemoMode ? "/api/demo" : "/api";
+  // Production'da full URL kullan, development'ta relative URL
+  const apiBase = isDemoMode 
+    ? "/api/demo" 
+    : (import.meta.env.PROD ? window.location.origin + "/api" : "/api");
 
   // Geçmiş kayıtları ve template'leri yükle
   useEffect(() => {
@@ -565,10 +568,13 @@ export default function VariantCreator() {
   } = useQuery({
     queryKey: ["products", isDemoMode],
     queryFn: async () => {
-      const endpoint = isDemoMode ? `${apiBase}/products/list` : "/api/products/list";
+      // Production'da full URL kullan
+      const endpoint = isDemoMode 
+        ? `${apiBase}/products/list` 
+        : (import.meta.env.PROD ? `${window.location.origin}/api/products/list` : "/api/products/list");
       
       console.log(`🚀 Starting products fetch to: ${endpoint}`);
-      console.log(`🔍 isDemoMode: ${isDemoMode}, apiBase: ${apiBase}`);
+      console.log(`🔍 isDemoMode: ${isDemoMode}, apiBase: ${apiBase}, PROD: ${import.meta.env.PROD}`);
       console.log(`🔍 Full URL will be: ${endpoint}`);
       
       // Timeout ile fetch (10 saniye - GraphQL için yeterli)
@@ -693,7 +699,9 @@ export default function VariantCreator() {
     setIsUploadingToShopify(false);
 
     try {
-      const endpoint = isDemoMode ? `${apiBase}/variants/parse` : "/api/variants/parse";
+      const endpoint = isDemoMode 
+        ? `${apiBase}/variants/parse` 
+        : (import.meta.env.PROD ? `${window.location.origin}/api/variants/parse` : "/api/variants/parse");
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1242,7 +1250,9 @@ export default function VariantCreator() {
       });
       formData.append('colors', JSON.stringify(preview.colors));
 
-      const endpoint = isDemoMode ? `${apiBase}/images/analyze-colors` : "/api/images/analyze-colors";
+      const endpoint = isDemoMode 
+        ? `${apiBase}/images/analyze-colors` 
+        : (import.meta.env.PROD ? `${window.location.origin}/api/images/analyze-colors` : "/api/images/analyze-colors");
       const response = await fetch(endpoint, {
         method: "POST",
         body: formData,
@@ -1341,7 +1351,9 @@ export default function VariantCreator() {
       });
       formData.append('colors', JSON.stringify(preview.colors));
 
-      const endpoint = isDemoMode ? `${apiBase}/images/analyze-colors` : "/api/images/analyze-colors";
+      const endpoint = isDemoMode 
+        ? `${apiBase}/images/analyze-colors` 
+        : (import.meta.env.PROD ? `${window.location.origin}/api/images/analyze-colors` : "/api/images/analyze-colors");
       const response = await fetch(endpoint, {
         method: "POST",
         body: formData,
@@ -1443,7 +1455,9 @@ export default function VariantCreator() {
       formData.append('productId', productIdToUse);
       formData.append('imageColorMatches', JSON.stringify(colorMatchesToUse));
 
-      const endpoint = isDemoMode ? `${apiBase}/images/upload-to-shopify` : "/api/images/upload-to-shopify";
+      const endpoint = isDemoMode 
+        ? `${apiBase}/images/upload-to-shopify` 
+        : (import.meta.env.PROD ? `${window.location.origin}/api/images/upload-to-shopify` : "/api/images/upload-to-shopify");
       const response = await fetch(endpoint, {
         method: "POST",
         body: formData,
@@ -1890,7 +1904,9 @@ export default function VariantCreator() {
         const productName = product?.title || `Ürün ${i + 1}`;
 
         try {
-          const endpoint = isDemoMode ? `${apiBase}/variants/create` : "/api/variants/create";
+          const endpoint = isDemoMode 
+            ? `${apiBase}/variants/create` 
+            : (import.meta.env.PROD ? `${window.location.origin}/api/variants/create` : "/api/variants/create");
           const response = await fetch(endpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
