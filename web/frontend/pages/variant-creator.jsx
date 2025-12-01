@@ -609,11 +609,10 @@ export default function VariantCreator() {
     },
     refetchOnWindowFocus: false,
     enabled: true,
-    retry: 1, // 1 kez tekrar dene
-    retryDelay: 2000, // 2 saniye bekle
+    retry: 2, // 2 kez tekrar dene
+    retryDelay: 1000, // 1 saniye bekle
     staleTime: 30000,
-    // İlk yüklemede hemen boş array göster, sonra arka planda yükle
-    initialData: { products: [] },
+    // initialData kaldırıldı - gerçek API response'unu bekle
   });
 
   // Prompt'u parse et ve önizleme göster
@@ -2574,10 +2573,11 @@ export default function VariantCreator() {
                 </Card>
               )}
 
-              {/* Ürün yoksa ve hata yoksa ve loading bitmişse "ürün ekle" mesajı göster */}
+              {/* Ürün yoksa ve hata yoksa ve loading bitmişse ve gerçekten ürün yoksa "ürün ekle" mesajı göster */}
               {!productsData?.error && 
                !isLoadingProducts &&
-               productsData &&
+               productsData !== undefined &&
+               productsData !== null &&
                Array.isArray(productsData.products) &&
                productsData.products.length === 0 && (
                   <Card sectioned>
@@ -2666,7 +2666,7 @@ export default function VariantCreator() {
                   helpText={
                     isLoadingProducts 
                       ? "Ürünler yükleniyor..." 
-                      : productsData?.products?.length === 0 
+                      : (productsData && Array.isArray(productsData.products) && productsData.products.length === 0)
                         ? "Henüz ürün bulunamadı. Lütfen önce ürün ekleyin."
                         : undefined
                   }
