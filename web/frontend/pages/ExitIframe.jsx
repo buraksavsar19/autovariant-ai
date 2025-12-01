@@ -14,16 +14,32 @@ export default function ExitIframe() {
     if (!!app && !!search) {
       const params = new URLSearchParams(search);
       const redirectUri = params.get("redirectUri");
-      const url = new URL(decodeURIComponent(redirectUri));
-
-      if (
-        [window.location.hostname, "admin.shopify.com"].includes(url.hostname) ||
-        url.hostname.endsWith(".myshopify.com")
-      ) {
-        window.open(url, "_top");
-      } else {
-        setShowWarning(true);
+      
+      if (!redirectUri) {
+        // redirectUri yoksa, app'in root URL'ine yönlendir
+        window.location.href = "/";
+        return;
       }
+
+      try {
+        const url = new URL(decodeURIComponent(redirectUri));
+
+        if (
+          [window.location.hostname, "admin.shopify.com"].includes(url.hostname) ||
+          url.hostname.endsWith(".myshopify.com")
+        ) {
+          window.open(url, "_top");
+        } else {
+          setShowWarning(true);
+        }
+      } catch (error) {
+        // Geçersiz URL, app'in root URL'ine yönlendir
+        console.error("Invalid redirectUri:", error);
+        window.location.href = "/";
+      }
+    } else if (!search) {
+      // redirectUri parametresi yoksa, app'in root URL'ine yönlendir
+      window.location.href = "/";
     }
   }, [app, search, setShowWarning]);
 
