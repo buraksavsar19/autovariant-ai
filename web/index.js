@@ -715,13 +715,14 @@ function isTemplateProduct(title) {
   );
 }
 
-// Ürünleri listeleme endpoint'i (template ürünleri hariç)
+// Ürünleri listeleme endpoint'i (template ürünleri hariç) - Optimize edilmiş
 app.get("/api/products/list", async (req, res) => {
+  const startTime = Date.now();
+  
   try {
     // Session kontrolü
     if (!res.locals.shopify || !res.locals.shopify.session) {
       console.error("Session bulunamadı - authentication gerekli");
-      // 401 yerine 200 döndür, boş array ile - frontend takılı kalmasın
       return res.status(200).send({ 
         products: [],
         error: "Authentication required"
@@ -732,15 +733,16 @@ app.get("/api/products/list", async (req, res) => {
       session: res.locals.shopify.session,
     });
 
-    // Timeout ekle (8 saniye)
+    // Timeout azaltıldı (3 saniye - daha hızlı)
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("Request timeout")), 8000);
+      setTimeout(() => reject(new Error("Request timeout")), 3000);
     });
 
+    // Optimize edilmiş GraphQL sorgusu - Sadece ilk 50 ürün (daha hızlı)
     const productsData = await Promise.race([
       client.request(`
         query getProducts {
-          products(first: 250) {
+          products(first: 50, sortKey: CREATED_AT, reverse: true) {
             edges {
               node {
                 id
@@ -761,25 +763,33 @@ app.get("/api/products/list", async (req, res) => {
       timeoutPromise
     ]);
 
-    // Template ürünlerini filtrele
-    const allProducts = productsData.data.products.edges.map((edge) => ({
-      id: edge.node.id,
-      title: edge.node.title,
-      handle: edge.node.handle,
-      variantsCount: edge.node.variantsCount?.count || 0,
-      options: edge.node.options || [],
-      hasExistingVariants: (edge.node.variantsCount?.count || 0) > 1, // 1'den fazla varyant varsa
-    }));
+    // Template ürünlerini filtrele - Optimize edilmiş
+    const products = productsData.data.products.edges
+      .map((edge) => {
+        const product = edge.node;
+        // Template kontrolü - erken return
+        if (isTemplateProduct(product.title)) {
+          return null;
+        }
+        return {
+          id: product.id,
+          title: product.title,
+          handle: product.handle,
+          variantsCount: product.variantsCount?.count || 0,
+          options: product.options || [],
+          hasExistingVariants: (product.variantsCount?.count || 0) > 1,
+        };
+      })
+      .filter(Boolean); // null'ları filtrele
 
-    // Template ürünlerini çıkar, sadece gerçek ürünleri göster
-    const products = allProducts.filter(
-      (product) => !isTemplateProduct(product.title)
-    );
+    const duration = Date.now() - startTime;
+    console.log(`Products loaded in ${duration}ms, count: ${products.length}`);
 
     res.status(200).send({ products });
   } catch (error) {
-    console.error("Ürünler listelenirken hata:", error);
-    // Her durumda 200 döndür, boş array ile - frontend takılı kalmasın
+    const duration = Date.now() - startTime;
+    console.error(`Ürünler listelenirken hata (${duration}ms):`, error);
+    // Her durumda 200 döndür, boş array ile
     res.status(200).send({ 
       products: [],
       error: error.message || "Ürünler yüklenirken bir hata oluştu"
