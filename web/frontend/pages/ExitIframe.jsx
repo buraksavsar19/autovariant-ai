@@ -7,16 +7,18 @@ export default function ExitIframe() {
   const app = useAppBridge();
   const { search } = useLocation();
   const [showWarning, setShowWarning] = useState(false);
-
-  app.loading(true);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
+    if (isRedirecting) return; // Zaten yönlendirme yapılıyorsa tekrar yapma
+    
     if (!!app && !!search) {
       const params = new URLSearchParams(search);
       const redirectUri = params.get("redirectUri");
       
       if (!redirectUri) {
         // redirectUri yoksa, app'in root URL'ine yönlendir
+        setIsRedirecting(true);
         window.location.href = "/";
         return;
       }
@@ -28,6 +30,7 @@ export default function ExitIframe() {
           [window.location.hostname, "admin.shopify.com"].includes(url.hostname) ||
           url.hostname.endsWith(".myshopify.com")
         ) {
+          setIsRedirecting(true);
           window.open(url, "_top");
         } else {
           setShowWarning(true);
@@ -35,14 +38,22 @@ export default function ExitIframe() {
       } catch (error) {
         // Geçersiz URL, app'in root URL'ine yönlendir
         console.error("Invalid redirectUri:", error);
+        setIsRedirecting(true);
         window.location.href = "/";
       }
     } else if (!search) {
       // redirectUri parametresi yoksa, app'in root URL'ine yönlendir
+      setIsRedirecting(true);
       window.location.href = "/";
     }
-  }, [app, search, setShowWarning]);
+  }, [app, search, isRedirecting]);
 
+  // Yönlendirme yapılıyorsa hiçbir şey gösterme
+  if (isRedirecting) {
+    return null;
+  }
+
+  // Sadece uyarı gösterilmesi gerekiyorsa göster
   return showWarning ? (
     <Page narrowWidth>
       <Layout>
