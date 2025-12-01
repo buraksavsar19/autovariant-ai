@@ -635,32 +635,37 @@ app.get("/api/products/list", async (req, res) => {
   // Hemen response headers set et - timeout'u önlemek için
   res.setHeader('Content-Type', 'application/json');
   
-  // HEMEN response gönder - test için
-  // Önce basit bir response gönder, sonra session kontrolü yap
+  // CRITICAL: Session kontrolü yap ama hata durumunda bile response döndür
   try {
     // validateAuthenticatedSession middleware'ini manuel çağır
-    await new Promise((resolve) => {
-      const middleware = shopify.validateAuthenticatedSession();
-      middleware(req, res, (err) => {
-        if (err) {
-          console.error("❌ validateAuthenticatedSession middleware error:", err);
-        }
-        resolve();
+    // Ama eğer hata verirse bile devam et
+    try {
+      await new Promise((resolve, reject) => {
+        const middleware = shopify.validateAuthenticatedSession();
+        middleware(req, res, (err) => {
+          if (err) {
+            console.error("❌ validateAuthenticatedSession middleware error:", err);
+            // Hata olsa bile devam et - session olmayabilir
+            resolve();
+          } else {
+            resolve();
+          }
+        });
       });
-    });
+    } catch (middlewareError) {
+      console.error("❌ Middleware call error:", middlewareError);
+      // Middleware hatası olsa bile devam et
+    }
     
     // Middleware'den sonra session kontrolü
     if (!res.locals.shopify || !res.locals.shopify.session) {
       console.error("❌ Session bulunamadı after validateAuthenticatedSession");
       console.error("🔍 res.locals keys:", Object.keys(res.locals));
       // Session yoksa bile boş array döndür - frontend takılı kalmasın
+      console.log("✅ Returning empty products array (no session)");
       return res.status(200).send({ 
         products: [],
-        error: "Authentication required - please reinstall the app",
-        debug: {
-          hasShopify: !!res.locals.shopify,
-          hasSession: !!(res.locals.shopify && res.locals.shopify.session)
-        }
+        error: "Authentication required - please reinstall the app"
       });
     }
     
@@ -669,6 +674,7 @@ app.get("/api/products/list", async (req, res) => {
   } catch (error) {
     console.error(`❌ Error in /api/products/list:`, error);
     console.error("Error stack:", error.stack?.substring(0, 500));
+    // Hata durumunda bile response döndür - frontend takılı kalmasın
     res.status(200).send({ 
       products: [],
       error: error.message || "Ürünler yüklenirken bir hata oluştu",
