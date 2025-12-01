@@ -629,16 +629,41 @@ app.get("/api/products/list", async (req, res) => {
   // CRITICAL: validateAuthenticatedSession middleware'i redirect yapabilir
   // Bu yüzden middleware'i bypass edip direkt session'ı yükle
   try {
-    // Shop bilgisini query'den veya header'dan al
-    const shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 
-                 (req.headers.referer ? new URL(req.headers.referer).searchParams.get('shop') : null);
+    // Shop bilgisini query'den, header'dan veya cookie'den al
+    let shop = req.query.shop || req.headers['x-shopify-shop-domain'];
+    
+    // Eğer shop yoksa, referer'dan al
+    if (!shop && req.headers.referer) {
+      try {
+        const refererUrl = new URL(req.headers.referer);
+        shop = refererUrl.searchParams.get('shop');
+      } catch (e) {
+        // URL parse hatası, devam et
+      }
+    }
+    
+    // Eğer hala shop yoksa, cookie'lerden al
+    if (!shop && req.headers.cookie) {
+      const cookies = req.headers.cookie.split(';').reduce((acc, cookie) => {
+        const [key, value] = cookie.trim().split('=');
+        acc[key] = value;
+        return acc;
+      }, {});
+      // Shopify cookie formatını kontrol et
+      shop = cookies['shopify_app_session'] || cookies['shop'];
+    }
     
     if (!shop) {
       console.error("❌ Shop bilgisi bulunamadı");
+      console.error("🔍 Query:", req.query);
+      console.error("🔍 Headers:", {
+        referer: req.headers.referer,
+        cookie: req.headers.cookie ? "present" : "missing"
+      });
       // Shop yoksa bile boş array döndür - frontend takılı kalmasın
       return res.status(200).send({ 
         products: [],
-        error: "Shop information not found"
+        error: "Shop information not found - please reinstall the app"
       });
     }
     
