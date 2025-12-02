@@ -79,18 +79,55 @@ RENK ÇIKARMA KURALLARI (ÇOK ÖNEMLİ):
 8.5. KARŞILAŞTIRMA FİYATI (compareAtPrice) - İNDİRİMLİ ÜRÜNLER İÇİN:
    Karşılaştırma fiyatı = Eski fiyat (üstü çizili gösterilir). Satış fiyatı (basePrice) bundan DÜŞÜK olmalı.
    
-   KARŞILAŞTIRMA FİYATI İFADELERİ:
+   KARŞILAŞTIRMA FİYATI İFADELERİ (TÜM BU İFADELERİ TANIMALISIN!):
    - "karşılaştırma fiyatı 600" → compareAtPrice: 600
    - "eski fiyat 600" → compareAtPrice: 600
    - "liste fiyatı 600" → compareAtPrice: 600
-   - "600 liradan 500 liraya indirimli" → compareAtPrice: 600, basePrice: 500
-   - "indirimli fiyat 500, eski fiyat 600" → compareAtPrice: 600, basePrice: 500
-   - "%20 indirimli, eski fiyat 600" → compareAtPrice: 600, basePrice: 480 (otomatik hesapla)
+   - "önceki fiyat 600" → compareAtPrice: 600
+   - "normal fiyat 600" → compareAtPrice: 600
+   - "orijinal fiyat 600" → compareAtPrice: 600
+   - "üstü çizili fiyat 600" → compareAtPrice: 600
+   - "indirim öncesi fiyat 600" → compareAtPrice: 600
+   - "kampanya öncesi fiyat 600" → compareAtPrice: 600
    - "karşılaştırma 700 lira" → compareAtPrice: 700
+   - "eski fiyatı 600" → compareAtPrice: 600
+   - "liste fiyatı 600 lira" → compareAtPrice: 600
+   - "600 liradan 500 liraya indirimli" → compareAtPrice: 600, basePrice: 500
+   - "600'den 500'e indirimli" → compareAtPrice: 600, basePrice: 500
+   - "600'den indirimli 500" → compareAtPrice: 600, basePrice: 500
+   - "600 liraya satılıyordu, şimdi 500" → compareAtPrice: 600, basePrice: 500
+   - "600'den satılıyordu, 500'e düştü" → compareAtPrice: 600, basePrice: 500
+   - "indirimli fiyat 500, eski fiyat 600" → compareAtPrice: 600, basePrice: 500
+   - "satış fiyatı 500, eski fiyat 600" → compareAtPrice: 600, basePrice: 500
+   - "500 lira (eski fiyat 600)" → compareAtPrice: 600, basePrice: 500
+   - "500 lira, önceden 600 liraydı" → compareAtPrice: 600, basePrice: 500
+   - "%20 indirimli, eski fiyat 600" → compareAtPrice: 600, basePrice: 480 (otomatik hesapla)
+   - "%25 indirim, normal fiyat 800" → compareAtPrice: 800, basePrice: 600 (otomatik hesapla)
+   - "600 liradan %20 indirimli" → compareAtPrice: 600, basePrice: 480 (otomatik hesapla)
+   - "800 liradan %25 indirim" → compareAtPrice: 800, basePrice: 600 (otomatik hesapla)
+   - "fiyat 500, karşılaştırma 600" → compareAtPrice: 600, basePrice: 500
+   - "fiyat 500, liste fiyatı 600" → compareAtPrice: 600, basePrice: 500
+   - "500 lira fiyat, 600 lira liste fiyatı" → compareAtPrice: 600, basePrice: 500
+   - "600 liradan 500 liraya" → compareAtPrice: 600, basePrice: 500
+   - "600'den 500'e" → compareAtPrice: 600, basePrice: 500
+   - "600 liradan 500" → compareAtPrice: 600, basePrice: 500
+   - "600'den 500 lira" → compareAtPrice: 600, basePrice: 500
+   
+   ÖNEMLİ NOTLAR:
+   - "satış fiyatı" ifadesi karışık olabilir! Eğer "satış fiyatı 500, eski fiyat 600" gibi bir cümle varsa → basePrice: 500, compareAtPrice: 600
+   - Sadece "satış fiyatı 500" derse → basePrice: 500, compareAtPrice: null (karşılaştırma fiyatı yok)
+   - "600'den 500'e" gibi ifadelerde → İlk sayı (600) = compareAtPrice, İkinci sayı (500) = basePrice
+   - "%X indirim" ifadelerinde → Eski fiyat = compareAtPrice, Yeni fiyat = basePrice (otomatik hesapla)
+   - "600 liraya satılıyordu" → compareAtPrice: 600 (eski fiyat)
+   - "önceden 600 liraydı" → compareAtPrice: 600
+   - "600'den düştü" → compareAtPrice: 600
    
    BEDEN/RENK BAZLI KARŞILAŞTIRMA FİYATI:
    - "2XL için karşılaştırma fiyatı 800" → compareAtPriceRules: [{"condition": "2XL", "value": 800}]
    - "Kırmızı için eski fiyat 700" → compareAtPriceRules: [{"condition": "Kırmızı", "value": 700}]
+   - "2XL için önceki fiyat 800" → compareAtPriceRules: [{"condition": "2XL", "value": 800}]
+   - "Kırmızı için liste fiyatı 700" → compareAtPriceRules: [{"condition": "Kırmızı", "value": 700}]
+   - "2XL için 800'den 700'e" → compareAtPriceRules: [{"condition": "2XL", "value": 800}], basePrice: 700 (ama bu karışık, dikkatli ol)
    
    ÖNEMLİ: Eğer karşılaştırma fiyatı belirtilmemişse → compareAtPrice: null, compareAtPriceRules: []
 
@@ -141,67 +178,119 @@ RENK ÇIKARMA KURALLARI (ÇOK ÖNEMLİ):
 
 Örnek 1 (TEMEL - FİYAT VE STOK):
 Prompt: "S'den 3XL'e kadar kırmızı mavi sarı yeşil renklerinde, fiyat 500 lira, her varyant için 10 adet stok"
-Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Kırmızı", "Mavi", "Sarı", "Yeşil"], "priceRules": [], "basePrice": 500, "stockRules": [], "defaultStock": 10}
+Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Kırmızı", "Mavi", "Sarı", "Yeşil"], "priceRules": [], "basePrice": 500, "compareAtPrice": null, "compareAtPriceRules": [], "stockRules": [], "defaultStock": 10}
 
 Örnek 2 (ÖZEL STOK KURALI):
 Prompt: "S'den 3XL'e kadar kırmızı mavi renklerinde, 2XL ve sonrası için fiyat +100 lira, 2XL için 5 adet stok"
-Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Kırmızı", "Mavi"], "priceRules": [{"condition": "2XL ve üzeri", "increase": 100}], "basePrice": null, "stockRules": [{"condition": "2XL", "quantity": 5}], "defaultStock": null}
+Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Kırmızı", "Mavi"], "priceRules": [{"condition": "2XL ve üzeri", "increase": 100}], "basePrice": null, "compareAtPrice": null, "compareAtPriceRules": [], "stockRules": [{"condition": "2XL", "quantity": 5}], "defaultStock": null}
 
 Örnek 3 (FİYAT KURALLARI):
 Prompt: "S M L XL 2XL bedenler, kırmızı yeşil mavi renkler, XL'den büyük bedenler için -50 lira, kırmızı için +20 lira"
-Response: {"sizes": ["S", "M", "L", "XL", "2XL"], "colors": ["Kırmızı", "Yeşil", "Mavi"], "priceRules": [{"condition": "XL ve üzeri", "decrease": 50}, {"condition": "Kırmızı", "increase": 20}], "basePrice": null, "stockRules": [], "defaultStock": null}
+Response: {"sizes": ["S", "M", "L", "XL", "2XL"], "colors": ["Kırmızı", "Yeşil", "Mavi"], "priceRules": [{"condition": "XL ve üzeri", "decrease": 50}, {"condition": "Kırmızı", "increase": 20}], "basePrice": null, "compareAtPrice": null, "compareAtPriceRules": [], "stockRules": [], "defaultStock": null}
 
 Örnek 4 (TEMEL FİYAT + ARTIŞ):
 Prompt: "S'den 3XL'e kadar, kırmızı mavi renkler, fiyat 300 lira, 2XL ve sonrası için +100 lira ekstra"
-Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Kırmızı", "Mavi"], "priceRules": [{"condition": "2XL ve üzeri", "increase": 100}], "basePrice": 300, "stockRules": [], "defaultStock": null}
+Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Kırmızı", "Mavi"], "priceRules": [{"condition": "2XL ve üzeri", "increase": 100}], "basePrice": 300, "compareAtPrice": null, "compareAtPriceRules": [], "stockRules": [], "defaultStock": null}
 
 Örnek 5 (BOŞLUKLA AYRILAN RENKLER):
 Prompt: "S'den 3XL'e kadar tüm bedenler, kırmızı beyaz renkler, fiyat 500 lira"
-Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Kırmızı", "Beyaz"], "priceRules": [], "basePrice": 500, "stockRules": [], "defaultStock": null}
+Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Kırmızı", "Beyaz"], "priceRules": [], "basePrice": 500, "compareAtPrice": null, "compareAtPriceRules": [], "stockRules": [], "defaultStock": null}
 
 Örnek 6 (ÜÇ RENK BOŞLUKLA):
 Prompt: "S'den 3XL'e kadar bedenler, siyah beyaz gri renkler, fiyat 450 lira"
-Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Siyah", "Beyaz", "Gri"], "priceRules": [], "basePrice": 450, "stockRules": [], "defaultStock": null}
+Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Siyah", "Beyaz", "Gri"], "priceRules": [], "basePrice": 450, "compareAtPrice": null, "compareAtPriceRules": [], "stockRules": [], "defaultStock": null}
 
 Örnek 7 (VİRGÜLLE AYRILAN):
 Prompt: "M, L, XL bedenler, beyaz, lacivert, bordo renkler"
-Response: {"sizes": ["M", "L", "XL"], "colors": ["Beyaz", "Lacivert", "Bordo"], "priceRules": [], "basePrice": null, "stockRules": [], "defaultStock": null}
+Response: {"sizes": ["M", "L", "XL"], "colors": ["Beyaz", "Lacivert", "Bordo"], "priceRules": [], "basePrice": null, "compareAtPrice": null, "compareAtPriceRules": [], "stockRules": [], "defaultStock": null}
 
 Örnek 8 (STOK - "TÜMÜ İÇİN" İFADESİ - ÇOK ÖNEMLİ!):
 Prompt: "S'den 3XL'e kadar, kırmızı yeşil mavi renkler, tümü için 10 adet stok"
-Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Kırmızı", "Yeşil", "Mavi"], "priceRules": [], "basePrice": null, "stockRules": [], "defaultStock": 10}
+Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Kırmızı", "Yeşil", "Mavi"], "priceRules": [], "basePrice": null, "compareAtPrice": null, "compareAtPriceRules": [], "stockRules": [], "defaultStock": 10}
 
 Örnek 9 (STOK - KISA İFADE):
 Prompt: "S M L XL bedenler, siyah beyaz renkler, 10 stok"
-Response: {"sizes": ["S", "M", "L", "XL"], "colors": ["Siyah", "Beyaz"], "priceRules": [], "basePrice": null, "stockRules": [], "defaultStock": 10}
+Response: {"sizes": ["S", "M", "L", "XL"], "colors": ["Siyah", "Beyaz"], "priceRules": [], "basePrice": null, "compareAtPrice": null, "compareAtPriceRules": [], "stockRules": [], "defaultStock": 10}
 
 Örnek 10 (STOK - "HEPSİ" İFADESİ):
 Prompt: "M L XL 2XL bedenler, mavi kırmızı, fiyat 600, hepsi için 15 adet"
-Response: {"sizes": ["M", "L", "XL", "2XL"], "colors": ["Mavi", "Kırmızı"], "priceRules": [], "basePrice": 600, "stockRules": [], "defaultStock": 15}
+Response: {"sizes": ["M", "L", "XL", "2XL"], "colors": ["Mavi", "Kırmızı"], "priceRules": [], "basePrice": 600, "compareAtPrice": null, "compareAtPriceRules": [], "stockRules": [], "defaultStock": 15}
 
 Örnek 11 (STOK - "ADET" SONRA):
 Prompt: "S'den 2XL'e kadar, yeşil sarı turuncu, 20 adet stok"
-Response: {"sizes": ["S", "M", "L", "XL", "2XL"], "colors": ["Yeşil", "Sarı", "Turuncu"], "priceRules": [], "basePrice": null, "stockRules": [], "defaultStock": 20}
+Response: {"sizes": ["S", "M", "L", "XL", "2XL"], "colors": ["Yeşil", "Sarı", "Turuncu"], "priceRules": [], "basePrice": null, "compareAtPrice": null, "compareAtPriceRules": [], "stockRules": [], "defaultStock": 20}
 
 Örnek 12 (HER ŞEY BİRLİKTE):
 Prompt: "S M L XL 2XL 3XL bedenler, siyah beyaz gri lacivert renkler, fiyat 750 lira, 2XL ve üzeri için +150 lira, tümü için 25 adet"
-Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Siyah", "Beyaz", "Gri", "Lacivert"], "priceRules": [{"condition": "2XL ve üzeri", "increase": 150}], "basePrice": 750, "stockRules": [], "defaultStock": 25}
+Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Siyah", "Beyaz", "Gri", "Lacivert"], "priceRules": [{"condition": "2XL ve üzeri", "increase": 150}], "basePrice": 750, "compareAtPrice": null, "compareAtPriceRules": [], "stockRules": [], "defaultStock": 25}
 
 Örnek 13 (STOK - "HER VARYANT" İFADESİ - ÇOK ÖNEMLİ!):
 Prompt: "S M L XL bedenler, kırmızı mavi yeşil renkler, her varyantın 10 adet olmasını istiyorum"
-Response: {"sizes": ["S", "M", "L", "XL"], "colors": ["Kırmızı", "Mavi", "Yeşil"], "priceRules": [], "basePrice": null, "stockRules": [], "defaultStock": 10}
+Response: {"sizes": ["S", "M", "L", "XL"], "colors": ["Kırmızı", "Mavi", "Yeşil"], "priceRules": [], "basePrice": null, "compareAtPrice": null, "compareAtPriceRules": [], "stockRules": [], "defaultStock": 10}
 
 Örnek 14 (STOK - KISA VE NET):
 Prompt: "S M L XL, kırmızı mavi, her varyant 10 adet"
-Response: {"sizes": ["S", "M", "L", "XL"], "colors": ["Kırmızı", "Mavi"], "priceRules": [], "basePrice": null, "stockRules": [], "defaultStock": 10}
+Response: {"sizes": ["S", "M", "L", "XL"], "colors": ["Kırmızı", "Mavi"], "priceRules": [], "basePrice": null, "compareAtPrice": null, "compareAtPriceRules": [], "stockRules": [], "defaultStock": 10}
 
 Örnek 15 (STOK - VARYANT BAŞINA):
 Prompt: "S'den XL'e kadar, siyah beyaz gri, varyant başına 15 adet stok"
-Response: {"sizes": ["S", "M", "L", "XL"], "colors": ["Siyah", "Beyaz", "Gri"], "priceRules": [], "basePrice": null, "stockRules": [], "defaultStock": 15}
+Response: {"sizes": ["S", "M", "L", "XL"], "colors": ["Siyah", "Beyaz", "Gri"], "priceRules": [], "basePrice": null, "compareAtPrice": null, "compareAtPriceRules": [], "stockRules": [], "defaultStock": 15}
 
 Örnek 16 (STOK - FİYAT VE STOK BİRLİKTE):
 Prompt: "M L XL 2XL, mavi yeşil sarı, fiyat 500, her biri 20 adet"
-Response: {"sizes": ["M", "L", "XL", "2XL"], "colors": ["Mavi", "Yeşil", "Sarı"], "priceRules": [], "basePrice": 500, "stockRules": [], "defaultStock": 20}
+Response: {"sizes": ["M", "L", "XL", "2XL"], "colors": ["Mavi", "Yeşil", "Sarı"], "priceRules": [], "basePrice": 500, "compareAtPrice": null, "compareAtPriceRules": [], "stockRules": [], "defaultStock": 20}
+
+Örnek 17 (KARŞILAŞTIRMA FİYATI - TEMEL):
+Prompt: "S'den 3XL'e kadar, kırmızı mavi renkler, fiyat 500 lira, eski fiyat 600"
+Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Kırmızı", "Mavi"], "priceRules": [], "basePrice": 500, "compareAtPrice": 600, "compareAtPriceRules": [], "stockRules": [], "defaultStock": null}
+
+Örnek 18 (KARŞILAŞTIRMA FİYATI - "600'DEN 500'E"):
+Prompt: "S M L XL bedenler, siyah beyaz renkler, 600'den 500'e indirimli"
+Response: {"sizes": ["S", "M", "L", "XL"], "colors": ["Siyah", "Beyaz"], "priceRules": [], "basePrice": 500, "compareAtPrice": 600, "compareAtPriceRules": [], "stockRules": [], "defaultStock": null}
+
+Örnek 19 (KARŞILAŞTIRMA FİYATI - "600 LİRADAN 500"):
+Prompt: "M L XL 2XL, kırmızı yeşil, 600 liradan 500 lira"
+Response: {"sizes": ["M", "L", "XL", "2XL"], "colors": ["Kırmızı", "Yeşil"], "priceRules": [], "basePrice": 500, "compareAtPrice": 600, "compareAtPriceRules": [], "stockRules": [], "defaultStock": null}
+
+Örnek 20 (KARŞILAŞTIRMA FİYATI - "ÖNCEKİ FİYAT"):
+Prompt: "S'den 2XL'e kadar, mavi sarı turuncu, fiyat 450, önceki fiyat 600"
+Response: {"sizes": ["S", "M", "L", "XL", "2XL"], "colors": ["Mavi", "Sarı", "Turuncu"], "priceRules": [], "basePrice": 450, "compareAtPrice": 600, "compareAtPriceRules": [], "stockRules": [], "defaultStock": null}
+
+Örnek 21 (KARŞILAŞTIRMA FİYATI - "LİSTE FİYATI"):
+Prompt: "S M L XL, siyah beyaz gri, fiyat 400, liste fiyatı 550"
+Response: {"sizes": ["S", "M", "L", "XL"], "colors": ["Siyah", "Beyaz", "Gri"], "priceRules": [], "basePrice": 400, "compareAtPrice": 550, "compareAtPriceRules": [], "stockRules": [], "defaultStock": null}
+
+Örnek 22 (KARŞILAŞTIRMA FİYATI - "%20 İNDİRİM"):
+Prompt: "M L XL 2XL, kırmızı mavi, %20 indirimli, eski fiyat 600"
+Response: {"sizes": ["M", "L", "XL", "2XL"], "colors": ["Kırmızı", "Mavi"], "priceRules": [], "basePrice": 480, "compareAtPrice": 600, "compareAtPriceRules": [], "stockRules": [], "defaultStock": null}
+
+Örnek 23 (KARŞILAŞTIRMA FİYATI - "600 LİRAYA SATILIYORDU"):
+Prompt: "S'den 3XL'e kadar, yeşil sarı, 600 liraya satılıyordu, şimdi 500"
+Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Yeşil", "Sarı"], "priceRules": [], "basePrice": 500, "compareAtPrice": 600, "compareAtPriceRules": [], "stockRules": [], "defaultStock": null}
+
+Örnek 24 (KARŞILAŞTIRMA FİYATI - BEDEN BAZLI):
+Prompt: "S M L XL 2XL, siyah beyaz, fiyat 500, 2XL için eski fiyat 700"
+Response: {"sizes": ["S", "M", "L", "XL", "2XL"], "colors": ["Siyah", "Beyaz"], "priceRules": [], "basePrice": 500, "compareAtPrice": null, "compareAtPriceRules": [{"condition": "2XL", "value": 700}], "stockRules": [], "defaultStock": null}
+
+Örnek 25 (KARŞILAŞTIRMA FİYATI - RENK BAZLI):
+Prompt: "S'den 2XL'e kadar, kırmızı mavi yeşil, fiyat 450, kırmızı için liste fiyatı 600"
+Response: {"sizes": ["S", "M", "L", "XL", "2XL"], "colors": ["Kırmızı", "Mavi", "Yeşil"], "priceRules": [], "basePrice": 450, "compareAtPrice": null, "compareAtPriceRules": [{"condition": "Kırmızı", "value": 600}], "stockRules": [], "defaultStock": null}
+
+Örnek 26 (KARŞILAŞTIRMA FİYATI - "NORMAL FİYAT"):
+Prompt: "M L XL, lacivert bordo, fiyat 350, normal fiyat 500"
+Response: {"sizes": ["M", "L", "XL"], "colors": ["Lacivert", "Bordo"], "priceRules": [], "basePrice": 350, "compareAtPrice": 500, "compareAtPriceRules": [], "stockRules": [], "defaultStock": null}
+
+Örnek 27 (KARŞILAŞTIRMA FİYATI - "ORİJİNAL FİYAT"):
+Prompt: "S M L XL 2XL, gri siyah, fiyat 400, orijinal fiyat 550"
+Response: {"sizes": ["S", "M", "L", "XL", "2XL"], "colors": ["Gri", "Siyah"], "priceRules": [], "basePrice": 400, "compareAtPrice": 550, "compareAtPriceRules": [], "stockRules": [], "defaultStock": null}
+
+Örnek 28 (KARŞILAŞTIRMA FİYATI - "İNDİRİM ÖNCESİ"):
+Prompt: "S'den 3XL'e kadar, pembe turuncu, fiyat 300, indirim öncesi fiyat 450"
+Response: {"sizes": ["S", "M", "L", "XL", "2XL", "3XL"], "colors": ["Pembe", "Turuncu"], "priceRules": [], "basePrice": 300, "compareAtPrice": 450, "compareAtPriceRules": [], "stockRules": [], "defaultStock": null}
+
+Örnek 29 (KARŞILAŞTIRMA FİYATI - KARMAŞIK):
+Prompt: "S M L XL, kırmızı mavi yeşil, fiyat 500, eski fiyat 600, her varyant 10 adet"
+Response: {"sizes": ["S", "M", "L", "XL"], "colors": ["Kırmızı", "Mavi", "Yeşil"], "priceRules": [], "basePrice": 500, "compareAtPrice": 600, "compareAtPriceRules": [], "stockRules": [], "defaultStock": 10}
 
 YANLIŞ ÖRNEK (Standart eklenmemeli):
 {"sizes": ["S", "M", "L"], "colors": ["Standart", "Kırmızı"], ...} ❌
@@ -234,6 +323,8 @@ Doğru: {"stockRules": [], "defaultStock": 10} ✓`;
     console.log("Original prompt:", prompt);
     console.log("GPT Result:", JSON.stringify(result, null, 2));
     console.log("PriceRules:", JSON.stringify(result.priceRules, null, 2));
+    console.log("CompareAtPrice:", result.compareAtPrice);
+    console.log("CompareAtPriceRules:", JSON.stringify(result.compareAtPriceRules, null, 2));
     console.log("=== END GPT PARSE ===");
     
     // Format kontrolü ve düzeltme
@@ -510,8 +601,19 @@ function shouldApplyPriceRule(condition, currentSize, currentColor = null) {
   }
   
   // Condition'da direkt beden adı geçiyorsa (örn: "2xl için", "3xl bedenler")
-  for (const size of allSizes) {
-    if (conditionLower.includes(size.toLowerCase()) && currentSizeUpper === size) {
+  // ÖNEMLİ: Büyük bedenleri önce kontrol et (2XL, 3XL gibi), sonra küçük bedenleri (L, M, S)
+  // Çünkü "2XL" içinde "L" geçiyor, bu yüzden önce büyük bedenleri kontrol etmeliyiz
+  const sortedSizes = [...allSizes].sort((a, b) => b.length - a.length); // Uzun bedenleri önce
+  for (const size of sortedSizes) {
+    const sizeLower = size.toLowerCase();
+    // Tam kelime eşleşmesi kontrolü - kelime sınırlarında veya başta/sonda
+    // Örnek: "2xl" için "2xl için" → true, "2xl" için "xl" → false
+    // Regex ile kelime sınırlarını kontrol et
+    const sizePattern = sizeLower.replace(/\d+/g, '\\d+'); // Sayıları regex pattern'e çevir
+    const exactMatchRegex = new RegExp(`(^|\\s)${sizePattern}(\\s|$)`, 'i');
+    const exactMatch = conditionLower === sizeLower || exactMatchRegex.test(conditionLower);
+    
+    if (exactMatch && currentSizeUpper === size) {
       return true;
     }
   }
@@ -702,9 +804,18 @@ export async function createVariants(session, productId, parsedVariant) {
         }
 
         // Karşılaştırma fiyatı varsa ekle
-        let variantCompareAtPrice = null;
-        // Not: Bu branch zaten kullanılmıyor (editableVariants kullanılıyor), 
-        // ama yine de ekleyelim tutarlılık için
+        let variantCompareAtPrice = parsedVariant.compareAtPrice ? parseFloat(parsedVariant.compareAtPrice).toFixed(2) : null;
+        
+        // CompareAtPriceRules varsa uygula
+        if (parsedVariant.compareAtPriceRules && Array.isArray(parsedVariant.compareAtPriceRules) && parsedVariant.compareAtPriceRules.length > 0) {
+          for (const rule of parsedVariant.compareAtPriceRules) {
+            const condition = rule.condition || "";
+            if (shouldApplyPriceRule(condition, size, color)) {
+              variantCompareAtPrice = rule.value ? parseFloat(rule.value).toFixed(2) : variantCompareAtPrice;
+              break; // İlk eşleşen kuralı kullan
+            }
+          }
+        }
 
         combinations.push({
           size,
@@ -885,9 +996,25 @@ export async function createVariants(session, productId, parsedVariant) {
         console.warn(`Stok bilgisi ATLANDI: ${combo.size}/${combo.color} - ${combo.inventoryQuantity} adet (Location ID yok)`);
       }
       
+      // compareAtPrice: null ise gönderme, string ise gönder
+      // ÖNEMLİ: compareAtPrice > price olmalı, aksi halde gönderme
+      let compareAtPriceValue = undefined;
+      if (combo.compareAtPrice && combo.compareAtPrice !== "null" && combo.compareAtPrice !== "") {
+        const comparePrice = parseFloat(combo.compareAtPrice);
+        const salePrice = parseFloat(combo.price);
+        // Mantık kontrolü: Karşılaştırma fiyatı satış fiyatından büyük olmalı
+        if (!isNaN(comparePrice) && !isNaN(salePrice) && comparePrice > salePrice) {
+          compareAtPriceValue = combo.compareAtPrice;
+        } else {
+          console.warn(`CompareAtPrice mantık hatası: ${combo.size}/${combo.color} - compareAtPrice (${comparePrice}) <= price (${salePrice}), gönderilmedi`);
+        }
+      }
+      
+      console.log(`CompareAtPrice debug: ${combo.size}/${combo.color} - compareAtPrice: ${combo.compareAtPrice}, final: ${compareAtPriceValue}`);
+      
       return {
         price: combo.price,
-        compareAtPrice: combo.compareAtPrice || null,
+        ...(compareAtPriceValue && { compareAtPrice: compareAtPriceValue }),
         optionValues: optionValues,
         inventoryQuantities: hasStock ? [
           {
@@ -1088,9 +1215,26 @@ export async function createVariants(session, productId, parsedVariant) {
         console.warn(`Stok bilgisi ATLANDI (bulkCreate): ${combo.size}/${combo.color} - ${combo.inventoryQuantity} adet (Location ID yok)`);
       }
 
+      // compareAtPrice: null ise gönderme, string ise gönder
+      // ÖNEMLİ: compareAtPrice > price olmalı, aksi halde gönderme
+      let compareAtPriceValue = undefined;
+      const comparePriceRaw = combo?.compareAtPrice || variant.compareAtPrice;
+      if (comparePriceRaw && comparePriceRaw !== "null" && comparePriceRaw !== "") {
+        const comparePrice = parseFloat(comparePriceRaw);
+        const salePrice = parseFloat(variant.price);
+        // Mantık kontrolü: Karşılaştırma fiyatı satış fiyatından büyük olmalı
+        if (!isNaN(comparePrice) && !isNaN(salePrice) && comparePrice > salePrice) {
+          compareAtPriceValue = comparePriceRaw;
+        } else {
+          console.warn(`CompareAtPrice mantık hatası (bulkCreate): ${combo?.size}/${combo?.color} - compareAtPrice (${comparePrice}) <= price (${salePrice}), gönderilmedi`);
+        }
+      }
+      
+      console.log(`CompareAtPrice debug (bulkCreate): ${combo?.size}/${combo?.color} - compareAtPrice: ${comparePriceRaw}, final: ${compareAtPriceValue}`);
+
       return {
         price: variant.price,
-        compareAtPrice: combo?.compareAtPrice || variant.compareAtPrice || null,
+        ...(compareAtPriceValue && { compareAtPrice: compareAtPriceValue }),
         optionValues: optionValues,
         inventoryPolicy: variant.inventoryPolicy,
         inventoryQuantities: hasStock ? [
@@ -1267,9 +1411,25 @@ export async function createVariants(session, productId, parsedVariant) {
             console.warn(`Stok bilgisi ATLANDI (productSet fallback): ${combo.size}/${combo.color} - ${combo.inventoryQuantity} adet (Location ID yok)`);
           }
           
+          // compareAtPrice: null ise gönderme, string ise gönder
+          // ÖNEMLİ: compareAtPrice > price olmalı, aksi halde gönderme
+          let compareAtPriceValue = undefined;
+          if (combo.compareAtPrice && combo.compareAtPrice !== "null" && combo.compareAtPrice !== "") {
+            const comparePrice = parseFloat(combo.compareAtPrice);
+            const salePrice = parseFloat(combo.price);
+            // Mantık kontrolü: Karşılaştırma fiyatı satış fiyatından büyük olmalı
+            if (!isNaN(comparePrice) && !isNaN(salePrice) && comparePrice > salePrice) {
+              compareAtPriceValue = combo.compareAtPrice;
+            } else {
+              console.warn(`CompareAtPrice mantık hatası (fallback): ${combo.size}/${combo.color} - compareAtPrice (${comparePrice}) <= price (${salePrice}), gönderilmedi`);
+            }
+          }
+          
+          console.log(`CompareAtPrice debug (fallback): ${combo.size}/${combo.color} - compareAtPrice: ${combo.compareAtPrice}, final: ${compareAtPriceValue}`);
+          
           return {
             price: combo.price,
-            compareAtPrice: combo.compareAtPrice || null,
+            ...(compareAtPriceValue && { compareAtPrice: compareAtPriceValue }),
             optionValues: optionValues,
             inventoryQuantities: hasStock ? [
               {

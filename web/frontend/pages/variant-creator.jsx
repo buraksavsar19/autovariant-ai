@@ -183,17 +183,17 @@ function shouldApplyPriceRule(condition, currentSize, currentColor = null) {
     }
     
     // Condition'da renk adı geçiyorsa (örn: "Kırmızı", "Kırmızı için", "kırmızı renkler")
-    for (const [key, normalizedColor] of Object.entries(commonColors)) {
+  for (const [key, normalizedColor] of Object.entries(commonColors)) {
       // Condition'da bu renk var mı?
       if (conditionClean.includes(key) || conditionClean === key) {
         // Beden kelimesi yoksa
         if (!conditionClean.match(/\d+xl|xs|s|m|l|beden|size/i)) {
           // Color'da da bu renk var mı?
           if (colorClean.includes(normalizedColor) || colorClean === normalizedColor) {
-            return true;
-          }
-        }
+        return true;
       }
+    }
+  }
     }
   }
   
@@ -2643,7 +2643,7 @@ export default function VariantCreator() {
                         🔄 Tekrar Dene
                       </Button>
                     </div>
-                  </Banner>
+                </Banner>
                 </Card>
               )}
 
@@ -2653,7 +2653,7 @@ export default function VariantCreator() {
                productsData !== undefined &&
                productsData !== null &&
                Array.isArray(productsData.products) &&
-               productsData.products.length === 0 && (
+                productsData.products.length === 0 && (
                   <Card sectioned>
                     <div style={{ 
                       textAlign: "center", 
@@ -2777,12 +2777,12 @@ export default function VariantCreator() {
                           const isAtLimit = !isSelected && selectedProductIds.length >= SHOPIFY_LIMITS.MAX_PRODUCTS_SELECTION;
                           
                           return (
-                            <Checkbox
-                              key={product.id}
-                              label={product.title}
+                          <Checkbox
+                            key={product.id}
+                            label={product.title}
                               checked={isSelected}
-                              onChange={(checked) => {
-                                if (checked) {
+                            onChange={(checked) => {
+                              if (checked) {
                                   // Limit kontrolü
                                   if (selectedProductIds.length >= SHOPIFY_LIMITS.MAX_PRODUCTS_SELECTION) {
                                     setError(
@@ -2793,15 +2793,15 @@ export default function VariantCreator() {
                                     );
                                     return;
                                   }
-                                  setSelectedProductIds([...selectedProductIds, product.id]);
+                                setSelectedProductIds([...selectedProductIds, product.id]);
                                   setError(null); // Başarılı seçimde hata mesajını temizle
-                                } else {
-                                  setSelectedProductIds(selectedProductIds.filter(id => id !== product.id));
+                              } else {
+                                setSelectedProductIds(selectedProductIds.filter(id => id !== product.id));
                                   setError(null); // Seçim kaldırıldığında hata mesajını temizle
-                                }
-                              }}
+                              }
+                            }}
                               disabled={isCreating || isAtLimit}
-                            />
+                          />
                           );
                         })
                       ) : (
