@@ -2315,8 +2315,9 @@ app.post("/api/images/upload-to-shopify", upload.array("images", 20), async (req
     const errors = [];
 
     // Her görsel için
-    for (let i = 0; i < (req.files?.length || 0); i++) {
-      const file = req.files[i];
+    const files = Array.isArray(req.files) ? req.files : [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
       const imageId = req.body.imageIds ? 
         (Array.isArray(req.body.imageIds) ? req.body.imageIds[i] : req.body.imageIds) : 
         `image-${i}`;
