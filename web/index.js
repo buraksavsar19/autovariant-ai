@@ -725,7 +725,16 @@ if (DEMO_MODE) {
   app.use("/api/demo/*", demoModeMiddleware);
 } else {
   // Diğer API endpoint'leri için validateAuthenticatedSession kullan
-  app.use("/api/*", shopify.validateAuthenticatedSession());
+  // AMA /api/products/list'i bypass et (kendi session handling'i var - satır 39'da tanımlı)
+  app.use("/api/*", (req, res, next) => {
+    // /api/products/list endpoint'ini bypass et - kendi session handling'i var
+    if (req.path === "/api/products/list" || req.path === "/products/list") {
+      console.log("🔓 Bypassing validateAuthenticatedSession for /api/products/list");
+      return next();
+    }
+    // Diğer endpoint'ler için validateAuthenticatedSession kullan
+    return shopify.validateAuthenticatedSession()(req, res, next);
+  });
 }
 
 // Billing endpoints
