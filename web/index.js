@@ -45,8 +45,6 @@ const upload = multer({
 app.get("/api/products/list", async (req, res) => {
   // HEMEN log - request geldiğini görmek için
   console.log("✅ /api/products/list endpoint hit");
-
-read_file
   
   // Hemen response headers set et
   res.setHeader('Content-Type', 'application/json');
@@ -55,7 +53,7 @@ read_file
   // Eğer bu bile gelmiyorsa, sorun Railway routing'de
   try {
     // Shop bilgisini query'den, header'dan veya cookie'den al
-    let shop = req.query.shop || req.headers['x-shopify-shop-domain'];
+    let shop = (req.query.shop as string) || req.headers['x-shopify-shop-domain'];
     
     if (!shop && req.headers.referer) {
       try {
@@ -634,7 +632,7 @@ if (DEMO_MODE) {
       (Array.isArray(req.body.imageIds) ? req.body.imageIds : [req.body.imageIds]) : 
       [];
     
-    const matches = (req.files && Array.isArray(req.files) ? req.files : []).map((file, index) => {
+    const matches = req.files?.map((file, index) => {
       // Rastgele bir renk eşleştir (demo için)
       const randomColor = colors[Math.floor(Math.random() * colors.length)] || colors[0];
       return {
@@ -1184,9 +1182,9 @@ app.post("/api/variants/parse", async (req, res) => {
         // "Standart" renkleri filtrele - eğer AI yanlışlıkla eklediyse temizle
         if (parsedVariant.colors && Array.isArray(parsedVariant.colors)) {
           parsedVariant.colors = parsedVariant.colors.filter(
-            color => String(color).toLowerCase().includes('standart') === false && 
-                     !c.toLowerCase().includes('default') &&
-                     !c.toLowerCase().includes('varsayılan'); }
+            color => typeof color === 'string' && !color.toLowerCase().includes('standart') && 
+                     !color.toLowerCase().includes('default') &&
+                     !color.toLowerCase().includes('varsayılan')
           );
         }
       } catch (error) {
@@ -1195,9 +1193,9 @@ app.post("/api/variants/parse", async (req, res) => {
         // Fallback parser için de aynı filtreyi uygula
         if (parsedVariant.colors && Array.isArray(parsedVariant.colors)) {
           parsedVariant.colors = parsedVariant.colors.filter(
-            color => String(color).toLowerCase().includes('standart') === false && 
-                     !c.toLowerCase().includes('default') &&
-                     !c.toLowerCase().includes('varsayılan'); }
+            color => typeof color === 'string' && !color.toLowerCase().includes('standart') && 
+                     !color.toLowerCase().includes('default') &&
+                     !color.toLowerCase().includes('varsayılan')
           );
         }
       }
@@ -2304,9 +2302,8 @@ app.post("/api/images/upload-to-shopify", upload.array("images", 20), async (req
     const errors = [];
 
     // Her görsel için
-    const files = Array.isArray(req.files) ? req.files : [];
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+    for (let i = 0; i < (req.files?.length || 0); i++) {
+      const file = req.files[i];
       const imageId = req.body.imageIds ? 
         (Array.isArray(req.body.imageIds) ? req.body.imageIds[i] : req.body.imageIds) : 
         `image-${i}`;
@@ -2490,7 +2487,6 @@ app.post("/api/images/upload-to-shopify", upload.array("images", 20), async (req
         
         // productImageId'yi al - MediaImage'den image.id'yi çıkar
         let productImageId = null;
-                let productImagesData = null;
         if (addedMedia?.image?.id) {
           productImageId = addedMedia.image.id;
         } else {
@@ -2515,7 +2511,7 @@ app.post("/api/images/upload-to-shopify", upload.array("images", 20), async (req
             }
           `;
           
-          productImagesData = await client.request(productWithImagesQuery, {
+          const productImagesData = await client.request(productWithImagesQuery, {
             variables: { id: productId },
           });
           
@@ -2538,7 +2534,7 @@ app.post("/api/images/upload-to-shopify", upload.array("images", 20), async (req
         
         if (!productImageId) {
           console.error("productCreateMedia full response:", JSON.stringify(mediaResult.data, null, 2));
-          console.error("Ürün görselleri:", productImagesData ? (productImagesData.data?.product?.images?.edges?.map(e => e.node) || []) : []);
+          console.error("Ürün görselleri:", productImagesData?.data?.product?.images?.edges?.map(e => e.node));
           throw new Error("Yeni eklenen görsel için product image ID alınamadı");
         }
         
