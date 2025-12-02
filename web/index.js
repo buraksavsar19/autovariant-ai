@@ -84,8 +84,27 @@ app.get("/api/products/list", async (req, res) => {
       } catch (e) {}
     }
     
+    // Local development fallback - environment variable'dan shop bilgisini al
+    if (!shop && process.env.NODE_ENV === 'development') {
+      shop = process.env.SHOPIFY_SHOP_DOMAIN || process.env.SHOP || null;
+      if (shop) {
+        console.log("⚠️ Local development mode - using shop from env:", shop);
+      }
+    }
+    
     if (!shop) {
       console.error("❌ Shop bilgisi bulunamadı");
+      console.error("Request headers:", {
+        'x-shopify-shop-domain': req.headers['x-shopify-shop-domain'],
+        referer: req.headers.referer,
+        cookie: req.headers.cookie ? 'present' : 'missing'
+      });
+      console.error("Request query:", req.query);
+      console.error("Environment:", process.env.NODE_ENV);
+      console.error("Available env vars:", {
+        SHOPIFY_SHOP_DOMAIN: process.env.SHOPIFY_SHOP_DOMAIN ? 'set' : 'not set',
+        SHOP: process.env.SHOP ? 'set' : 'not set'
+      });
       return res.status(200).json({ 
         products: [],
         error: "Shop information not found - please reinstall the app"
