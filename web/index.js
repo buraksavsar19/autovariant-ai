@@ -54,7 +54,8 @@ app.get("/api/products/list", async (req, res) => {
   // Eğer bu bile gelmiyorsa, sorun Railway routing'de
   try {
     // Shop bilgisini query'den, header'dan veya cookie'den al
-    let shop = req.query.shop || req.headers['x-shopify-shop-domain'];
+    let shop = (typeof req.query.shop === 'string' ? req.query.shop : null) || 
+               req.headers['x-shopify-shop-domain'];
     
     if (!shop && req.headers.referer) {
       try {
@@ -764,9 +765,14 @@ if (DEMO_MODE) {
 app.get("/api/billing/status", async (_req, res) => {
   try {
     const session = res.locals.shopify.session;
+    
+    if (!shopify.config.billing) {
+      return res.status(500).json({ error: "Billing not configured" });
+    }
+    
     const billing = await shopify.api.billing.check({
       session,
-      plans: shopify.config.billing ? Object.keys(shopify.config.billing) : [],
+      plans: Object.keys(shopify.config.billing),
       isTest: process.env.NODE_ENV !== "production",
     });
 
@@ -1239,7 +1245,7 @@ app.post("/api/variants/parse", async (req, res) => {
 // Görsel renk analizi endpoint'i
 app.post("/api/images/analyze-colors", upload.array("images", 20), async (req, res) => {
   try {
-    if (!req.files || req.files.length === 0) {
+    if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
       return res.status(400).send({
         success: false,
         error: "Lütfen en az bir görsel yükleyin",
@@ -2166,7 +2172,7 @@ app.post("/api/variants/import-csv", upload.single("csv"), async (req, res) => {
 // Görselleri Shopify'a yükle ve varyantlara ata
 app.post("/api/images/upload-to-shopify", upload.array("images", 20), async (req, res) => {
   try {
-    if (!req.files || req.files.length === 0) {
+    if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
       return res.status(400).send({
         success: false,
         error: "Lütfen en az bir görsel yükleyin",
@@ -2485,6 +2491,7 @@ app.post("/api/images/upload-to-shopify", upload.array("images", 20), async (req
         
         // productImageId'yi al - MediaImage'den image.id'yi çıkar
         let productImageId = null;
+        let productImagesData = null; // DECLARE HERE - used outside if block
         if (addedMedia?.image?.id) {
           productImageId = addedMedia.image.id;
         } else {
@@ -2509,7 +2516,7 @@ app.post("/api/images/upload-to-shopify", upload.array("images", 20), async (req
             }
           `;
           
-          const productImagesData = await client.request(productWithImagesQuery, {
+          productImagesData = await client.request(productWithImagesQuery, {
             variables: { id: productId },
           });
           
