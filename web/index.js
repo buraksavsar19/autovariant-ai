@@ -32,6 +32,15 @@ const STATIC_PATH =
 
 const app = express();
 
+// Request logging middleware - ADD AFTER const app = express()
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`${req.method} ${req.path} ${res.statusCode} ${duration}ms`);
+  });
+  next();
+});
 
 // Multer setup for file uploads
 const upload = multer({ 
@@ -2717,6 +2726,28 @@ app.use("/*", shopify.ensureInstalledOnShop(), async (_req, res, _next) => {
         .toString()
         .replace("%VITE_SHOPIFY_API_KEY%", process.env.SHOPIFY_API_KEY || "")
     );
+});
+
+// Global error handler - ADD THIS BEFORE app.listen()
+app.use((err, req, res, next) => {
+  console.error('❌ Unhandled error:', {
+    message: err.message,
+    stack: err.stack?.substring(0, 500),
+    url: req.url,
+    method: req.method
+  });
+  
+  res.status(err.status || 500).json({
+    error: process.env.NODE_ENV === 'production' 
+      ? 'Internal server error' 
+      : err.message,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route not found' });
 });
 
 app.listen(PORT);
