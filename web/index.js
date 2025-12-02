@@ -37,6 +37,7 @@ const app = express();
 const upload = multer({ 
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+});
 
 // ============================================================================
 // CRITICAL: /api/products/list endpoint - EN EN BAŞTA (app oluşturulur oluşturulmaz)
@@ -53,7 +54,7 @@ app.get("/api/products/list", async (req, res) => {
   // Eğer bu bile gelmiyorsa, sorun Railway routing'de
   try {
     // Shop bilgisini query'den, header'dan veya cookie'den al
-    let shop = (req.query.shop as string) || req.headers['x-shopify-shop-domain'];
+    let shop = req.query.shop || req.headers['x-shopify-shop-domain'];
     
     if (!shop && req.headers.referer) {
       try {
@@ -807,9 +808,6 @@ app.post("/api/billing/request", async (req, res) => {
       error: error.message || "Billing isteği gönderilemedi",
     });
   }
-});
-
-// Multer setup for file uploads
 });
 
 app.get("/api/products/count", async (_req, res) => {
