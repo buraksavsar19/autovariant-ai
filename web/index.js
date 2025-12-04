@@ -1,13 +1,40 @@
 // @ts-check
-import { join } from "path";
+import { join, dirname } from "path";
 import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
 import express from "express";
 import serveStatic from "serve-static";
 import multer from "multer";
 
 // Environment variables yükle
 import dotenv from "dotenv";
-dotenv.config();
+
+// ES modules'da __dirname yok, oluşturuyoruz
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// .env dosyasını web/ klasöründen oku (backend web/ klasöründen çalışıyor)
+dotenv.config({ path: join(__dirname, '.env') });
+
+// Sentry initialization (hata takibi için)
+import * as Sentry from "@sentry/node";
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || "development",
+    tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0, // Production'da %10, development'ta %100
+    beforeSend(event) {
+      // SendBeacon hatalarını filtrele (Shopify App Bridge'den kaynaklanabilir)
+      if (event.exception?.values?.[0]?.value?.includes("SendBeacon")) {
+        return null; // Bu hatayı gönderme
+      }
+      return event;
+    },
+  });
+  console.log("✅ Sentry initialized for error tracking");
+} else {
+  console.log("⚠️  Sentry DSN not found, error tracking disabled");
+}
 
 // Node.js 18+ için fetch global, eski versiyonlar için node-fetch gerekebilir
 // FormData için global FormData kullanacağız (Node.js 18+)
@@ -52,9 +79,22 @@ const upload = multer({
 // CRITICAL: /api/products/list endpoint - EN EN BAŞTA (app oluşturulur oluşturulmaz)
 // ============================================================================
 // Bu endpoint'i EN BAŞTA tanımla ki hiçbir middleware intercept etmesin
-app.get("/api/products/list", async (req, res) => {
+// Shopify'ın validateAuthenticatedSession middleware'ini kullan
+app.get("/api/products/list", shopify.validateAuthenticatedSession(), async (req, res) => {
   // HEMEN log - request geldiğini görmek için
   console.log("✅ /api/products/list endpoint hit");
+  console.log("🔍 Request details:", {
+    method: req.method,
+    path: req.path,
+    query: req.query,
+    headers: {
+      'x-shopify-shop-domain': req.headers['x-shopify-shop-domain'],
+      referer: req.headers.referer,
+      cookie: req.headers.cookie ? 'present' : 'missing'
+    },
+    env: process.env.NODE_ENV,
+    SHOPIFY_SHOP_DOMAIN: process.env.SHOPIFY_SHOP_DOMAIN ? 'set' : 'not set'
+  });
   
   // Hemen response headers set et
   res.setHeader('Content-Type', 'application/json');
@@ -63,13 +103,14 @@ app.get("/api/products/list", async (req, res) => {
   // Eğer bu bile gelmiyorsa, sorun Railway routing'de
   try {
     // Shop bilgisini query'den, header'dan veya cookie'den al
-    let shop = (typeof req.query.shop === 'string' ? req.query.shop : null) || 
-               req.headers['x-shopify-shop-domain'];
+    let shop = (typeof req.query.shop === 'string' ? req.query.shop : undefined) || 
+               (typeof req.headers['x-shopify-shop-domain'] === 'string' ? req.headers['x-shopify-shop-domain'] : undefined);
     
     if (!shop && req.headers.referer) {
       try {
         const refererUrl = new URL(req.headers.referer);
-        shop = refererUrl.searchParams.get('shop');
+        const shopParam = refererUrl.searchParams.get('shop');
+        shop = shopParam || undefined;
       } catch (e) {}
     }
     
@@ -80,13 +121,13 @@ app.get("/api/products/list", async (req, res) => {
           acc[key] = value;
           return acc;
         }, {});
-        shop = cookies['shopify_app_session'] || cookies['shop'];
+        shop = cookies['shopify_app_session'] || cookies['shop'] || undefined;
       } catch (e) {}
     }
     
     // Local development fallback - environment variable'dan shop bilgisini al
     if (!shop && process.env.NODE_ENV === 'development') {
-      shop = process.env.SHOPIFY_SHOP_DOMAIN || process.env.SHOP || null;
+      shop = process.env.SHOPIFY_SHOP_DOMAIN || process.env.SHOP || undefined;
       if (shop) {
         console.log("⚠️ Local development mode - using shop from env:", shop);
       }
@@ -113,31 +154,46 @@ app.get("/api/products/list", async (req, res) => {
     
     console.log("🔍 Shop found:", shop);
     
-    // Session'ı database'den yükle
-    try {
-      const sessionId = `shopify_app_session_${shop}`;
-      const session = await shopify.config.sessionStorage.loadSession(sessionId);
-      
-      if (!session) {
-        console.error("❌ Session database'de bulunamadı");
-        return res.status(200).json({ 
-          products: [],
-          error: "Session not found - please reinstall the app"
-        });
-      }
-      
-      res.locals.shopify = { session };
-      console.log("✅ Session loaded:", session.shop);
-      
-      // Session var, devam et
-      await handleProductsList(req, res, Date.now());
-    } catch (sessionError) {
-      console.error("❌ Session load error:", sessionError.message);
+    // Shopify'ın validateAuthenticatedSession middleware'i session'ı otomatik yükler
+    // res.locals.shopify.session zaten set edilmiş olmalı
+    if (!res.locals.shopify || !res.locals.shopify.session) {
+      console.error("❌ Session middleware'den gelmedi");
+      console.error("⚠️ Lütfen uygulamayı yeniden yükleyin:");
+      console.error(`   Terminal'de Preview URL'i açın veya Shopify Partners Dashboard'dan App URL'i kullanın`);
       return res.status(200).json({ 
         products: [],
-        error: "Session error - please reinstall the app"
+        error: "Session not found - please reinstall the app. Go to Preview URL in terminal."
       });
     }
+    
+    const session = res.locals.shopify.session;
+    
+    // CRITICAL: Access token kontrolü
+    console.log("🔍 Session details:", {
+      shop: session.shop,
+      hasAccessToken: !!session.accessToken,
+      accessTokenLength: session.accessToken?.length || 0,
+      accessTokenPreview: session.accessToken ? `${session.accessToken.substring(0, 20)}...` : 'missing',
+      scope: session.scope,
+      expires: session.expires,
+      isOnline: session.isOnline || false,
+    });
+    
+    // Eğer access token yoksa veya geçersizse
+    if (!session.accessToken) {
+      console.error("❌ Session'da access token yok!");
+      console.error("⚠️ Lütfen uygulamayı yeniden yükleyin:");
+      console.error(`   Terminal'de Preview URL'i açın veya Shopify Partners Dashboard'dan App URL'i kullanın`);
+      return res.status(200).json({ 
+        products: [],
+        error: "Session has no access token - please reinstall the app. Go to Preview URL in terminal."
+      });
+    }
+    
+    console.log(`✅ Session loaded from middleware:`, session.shop);
+    
+    // Session var, devam et
+    await handleProductsList(req, res, Date.now());
   } catch (error) {
     console.error(`❌ Error in /api/products/list:`, error.message);
     return res.status(200).json({ 
@@ -662,14 +718,15 @@ if (DEMO_MODE) {
       (Array.isArray(req.body.imageIds) ? req.body.imageIds : [req.body.imageIds]) : 
       [];
     
-    const matches = req.files?.map((file, index) => {
+    const files = Array.isArray(req.files) ? req.files : [];
+    const matches = files.map((file, index) => {
       // Rastgele bir renk eşleştir (demo için)
       const randomColor = colors[Math.floor(Math.random() * colors.length)] || colors[0];
       return {
         imageId: imageIds[index] || `image-${index}`,
         color: randomColor
       };
-    }) || [];
+    });
 
     await new Promise(resolve => setTimeout(resolve, 500));
     
@@ -794,19 +851,23 @@ app.get("/api/billing/status", async (_req, res) => {
   try {
     const session = res.locals.shopify.session;
     
-    if (!shopify.config.billing) {
+    // @ts-ignore - shopify.config.billing type definition eksik
+    const billingConfig = shopify.config.billing;
+    if (!billingConfig) {
       return res.status(500).json({ error: "Billing not configured" });
     }
     
     const billing = await shopify.api.billing.check({
       session,
-      plans: Object.keys(shopify.config.billing),
+      plans: Object.keys(billingConfig),
       isTest: process.env.NODE_ENV !== "production",
     });
 
     res.status(200).send({
-      hasActivePayment: billing.hasActivePayment,
-      confirmationUrl: billing.confirmationUrl,
+      // @ts-ignore - billing API response type definition eksik
+      hasActivePayment: billing.hasActivePayment || false,
+      // @ts-ignore
+      confirmationUrl: billing.confirmationUrl || null,
     });
   } catch (error) {
     console.error("Billing status kontrolü hatası:", error);
@@ -820,7 +881,9 @@ app.post("/api/billing/request", async (req, res) => {
   try {
     const { planName } = req.body;
 
-    if (!planName || !shopify.config.billing || !shopify.config.billing[planName]) {
+    // @ts-ignore - shopify.config.billing type definition eksik
+    const billingConfig = shopify.config.billing;
+    if (!planName || !billingConfig || !billingConfig[planName]) {
       return res.status(400).send({
         error: "Geçersiz plan adı",
       });
@@ -834,7 +897,8 @@ app.post("/api/billing/request", async (req, res) => {
     });
 
     res.status(200).send({
-      confirmationUrl: billing.confirmationUrl,
+      // @ts-ignore - billing API response type definition eksik
+      confirmationUrl: billing.confirmationUrl || null,
     });
   } catch (error) {
     console.error("Billing isteği hatası:", error);
@@ -1213,33 +1277,41 @@ app.post("/api/variants/parse", async (req, res) => {
         parsedVariant = await parseVariantPromptWithGPT(prompt, apiKey);
         // "Standart" renkleri filtrele - eğer AI yanlışlıkla eklediyse temizle
         if (parsedVariant.colors && Array.isArray(parsedVariant.colors)) {
-          parsedVariant.colors = parsedVariant.colors.filter(
-            color => typeof color === 'string' && !color.toLowerCase().includes('standart') && 
-                     !color.toLowerCase().includes('default') &&
-                     !color.toLowerCase().includes('varsayılan')
-          );
+          parsedVariant.colors = parsedVariant.colors.filter((color) => {
+            if (typeof color !== 'string') return false;
+            const lowerColor = color.toLowerCase();
+            return !lowerColor.includes('standart') && 
+                   !lowerColor.includes('default') &&
+                   !lowerColor.includes('varsayılan');
+          });
         }
       } catch (error) {
         console.warn("GPT API hatası, fallback kullanılıyor:", error.message);
         parsedVariant = parseVariantPrompt(prompt);
         // Fallback parser için de aynı filtreyi uygula
         if (parsedVariant.colors && Array.isArray(parsedVariant.colors)) {
-          parsedVariant.colors = parsedVariant.colors.filter(
-            color => typeof color === 'string' && !color.toLowerCase().includes('standart') && 
-                     !color.toLowerCase().includes('default') &&
-                     !color.toLowerCase().includes('varsayılan')
-          );
+          parsedVariant.colors = parsedVariant.colors.filter((color) => {
+            if (typeof color !== 'string') return false;
+            // @ts-ignore - TypeScript type inference sorunu, runtime'da string kontrolü yapıldı
+            const lowerColor = color.toLowerCase();
+            return !lowerColor.includes('standart') && 
+                   !lowerColor.includes('default') &&
+                   !lowerColor.includes('varsayılan');
+          });
         }
       }
     } else {
       parsedVariant = parseVariantPrompt(prompt);
       // Eski parser için de aynı filtreyi uygula
       if (parsedVariant.colors && Array.isArray(parsedVariant.colors)) {
-        parsedVariant.colors = parsedVariant.colors.filter(
-          color => !color.toLowerCase().includes('standart') && 
-                   !color.toLowerCase().includes('default') &&
-                   !color.toLowerCase().includes('varsayılan')
-        );
+        parsedVariant.colors = parsedVariant.colors.filter((color) => {
+          if (typeof color !== 'string') return false;
+          // @ts-ignore - TypeScript type inference sorunu, runtime'da string kontrolü yapıldı
+          const lowerColor = color.toLowerCase();
+          return !lowerColor.includes('standart') && 
+                 !lowerColor.includes('default') &&
+                 !lowerColor.includes('varsayılan');
+        });
       }
     }
     
@@ -2756,6 +2828,20 @@ app.use((err, req, res, next) => {
     url: req.url,
     method: req.method
   });
+  
+  // Sentry'ye hata gönder
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureException(err, {
+      tags: {
+        url: req.url,
+        method: req.method,
+      },
+      extra: {
+        query: req.query,
+        body: req.body,
+      },
+    });
+  }
   
   res.status(err.status || 500).json({
     error: process.env.NODE_ENV === 'production' 

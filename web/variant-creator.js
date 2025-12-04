@@ -62,6 +62,8 @@ RENK ÇIKARMA KURALLARI (ÇOK ÖNEMLİ):
    - "XL'den büyük bedenler -50 lira" → priceRules: [{"condition": "XL ve üzeri", "decrease": 50}]
    - "2XL için +100, 3XL için +150" → priceRules: [{"condition": "2XL", "increase": 100}, {"condition": "3XL", "increase": 150}]
    - "Kırmızı renkler için +20 lira" → priceRules: [{"condition": "Kırmızı", "increase": 20}]
+   - "Kırmızılar için fiyatı %20 artır" → priceRules: [{"condition": "Kırmızı", "increasePercentage": 20}]
+   - "Kırmızılar için +50 lira" → priceRules: [{"condition": "Kırmızı", "increase": 50}]
    - "2XL ve sonrası bedenler için fiyat 100 lira artır" → priceRules: [{"condition": "2XL ve üzeri", "increase": 100}]
    - "XL ve üzeri bedenler için fiyat %10 artır" → priceRules: [{"condition": "XL ve üzeri", "increasePercentage": 10}]
    - "2XL ve üzeri bedenler için fiyat %15 artır" → priceRules: [{"condition": "2XL ve üzeri", "increasePercentage": 15}]
@@ -541,9 +543,15 @@ function shouldApplyPriceRule(condition, currentSize, currentColor = null) {
     "pembe": "pembe", "pink": "pembe",
   };
   
-  // Önce renk kontrolü yap
+  // Önce renk kontrolü yap (çoğul ifadeleri de yakala: "kırmızılar", "kırmızı renkler")
   for (const [key, normalizedColor] of Object.entries(commonColors)) {
-    if (conditionLower.includes(key) && !conditionLower.match(/\d+xl|xs|s|m|l|beden|size/i)) {
+    // Condition'da bu renk var mı? (çoğul ifadeleri de yakala)
+    const hasColorKeyword = conditionLower.includes(key) || 
+                            conditionLower === key || 
+                            conditionLower.includes(key + "lar") || 
+                            conditionLower.includes(key + "ler");
+    
+    if (hasColorKeyword && !conditionLower.match(/\d+xl|xs|s|m|l|beden|size/i)) {
       // Condition'da renk var ama beden yok, bu bir renk kuralı
       if (currentColorLower && currentColorLower.includes(normalizedColor)) {
         return true;

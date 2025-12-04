@@ -182,10 +182,10 @@ function shouldApplyPriceRule(condition, currentSize, currentColor = null) {
       return true;
     }
     
-    // Condition'da renk adı geçiyorsa (örn: "Kırmızı", "Kırmızı için", "kırmızı renkler")
+    // Condition'da renk adı geçiyorsa (örn: "Kırmızı", "Kırmızı için", "kırmızı renkler", "kırmızılar için")
   for (const [key, normalizedColor] of Object.entries(commonColors)) {
-      // Condition'da bu renk var mı?
-      if (conditionClean.includes(key) || conditionClean === key) {
+      // Condition'da bu renk var mı? (çoğul ifadeleri de yakala: "kırmızılar", "kırmızı renkler")
+      if (conditionClean.includes(key) || conditionClean === key || conditionClean.includes(key + "lar") || conditionClean.includes(key + "ler")) {
         // Beden kelimesi yoksa
         if (!conditionClean.match(/\d+xl|xs|s|m|l|beden|size/i)) {
           // Color'da da bu renk var mı?

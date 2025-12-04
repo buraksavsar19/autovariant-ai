@@ -1,9 +1,30 @@
-import { BillingInterval, LATEST_API_VERSION } from "@shopify/shopify-api";
+import { BillingInterval } from "@shopify/shopify-api";
 import { shopifyApp } from "@shopify/shopify-app-express";
 import { SQLiteSessionStorage } from "@shopify/shopify-app-session-storage-sqlite";
+import { PostgreSQLSessionStorage } from "@shopify/shopify-app-session-storage-postgresql";
 import { restResources } from "@shopify/shopify-api/rest/admin/2025-01";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 
-const DB_PATH = `${process.cwd()}/database.sqlite`;
+// ES modules'da __dirname yok, oluşturuyoruz
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Database path'i - web/ klasöründen çalışıyor, database.sqlite web/ klasöründe
+const DB_PATH = join(__dirname, 'database.sqlite');
+
+// Session Storage: Production'da PostgreSQL, Development'ta SQLite
+let sessionStorage;
+
+if (process.env.DATABASE_URL) {
+  // Production: PostgreSQL kullan
+  console.log("🗄️  Using PostgreSQL for session storage");
+  sessionStorage = new PostgreSQLSessionStorage(process.env.DATABASE_URL);
+} else {
+  // Development: SQLite kullan
+  console.log("🗄️  Using SQLite for session storage (development mode)");
+  sessionStorage = new SQLiteSessionStorage(DB_PATH);
+}
 
 // Pricing plans
 const billingConfig = {
@@ -52,8 +73,7 @@ const shopify = shopifyApp({
   webhooks: {
     path: "/api/webhooks",
   },
-  // This should be replaced with your preferred storage strategy
-  sessionStorage: new SQLiteSessionStorage(DB_PATH),
+  sessionStorage: sessionStorage,
 });
 
 export default shopify;

@@ -15,6 +15,10 @@ if (
 }
 
 process.env.VITE_SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY;
+// Sentry DSN'i frontend'e aktar
+if (process.env.VITE_SENTRY_DSN) {
+  process.env.VITE_SENTRY_DSN = process.env.VITE_SENTRY_DSN;
+}
 
 const proxyOptions = {
   target: `http://127.0.0.1:${process.env.BACKEND_PORT || 3000}`,

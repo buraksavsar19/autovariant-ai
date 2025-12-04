@@ -1,6 +1,27 @@
 import App from "./App";
 import { createRoot } from "react-dom/client";
 import { initI18n } from "./utils/i18nUtils";
+import * as Sentry from "@sentry/react";
+
+// Sentry initialization (hata takibi için)
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
+if (sentryDsn) {
+  Sentry.init({
+    dsn: sentryDsn,
+    environment: import.meta.env.MODE || "development",
+    tracesSampleRate: import.meta.env.MODE === "production" ? 0.1 : 1.0, // Production'da %10, development'ta %100
+    beforeSend(event) {
+      // SendBeacon hatalarını filtrele (Shopify App Bridge'den kaynaklanabilir)
+      if (event.exception?.values?.[0]?.value?.includes("SendBeacon")) {
+        return null; // Bu hatayı gönderme
+      }
+      return event;
+    },
+  });
+  console.log("✅ Sentry initialized for frontend error tracking");
+} else {
+  console.log("⚠️  Sentry DSN not found, frontend error tracking disabled");
+}
 
 // SendBeacon hatalarını filtrele (Vite HMR veya Shopify App Bridge'den kaynaklanabilir)
 window.addEventListener("error", (event) => {
